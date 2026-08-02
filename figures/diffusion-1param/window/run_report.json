@@ -1,0 +1,137 @@
+{
+  "schema_version": 4,
+  "problem": {
+    "name": "diffusion_2d_coefficient_3_3_2",
+    "d_param": 1,
+    "d_space": 2,
+    "n_dof": 3969
+  },
+  "config": {
+    "mode": "Window",
+    "max_levels": 8,
+    "t_pi": 0.21,
+    "t_lambda": 0.085,
+    "pruning_mode": "anchored_absolute",
+    "refinement_topology": "axis_aligned",
+    "lambda_lo": 0.0,
+    "lambda_hi": 270.0,
+    "k_initial": 15
+  },
+  "outcome": {
+    "terminated_at_level": 3,
+    "ran_out": false,
+    "sentinel": "LEVEL_3_COMPLETED",
+    "wall_time_s": 0.6039781938306987,
+    "peak_rss_mb": 249.3359375
+  },
+  "levels": [
+    {
+      "L": 0,
+      "n_nodes_total": 3,
+      "n_nodes_added_this_level": 3,
+      "n_flagged_edges": 2,
+      "k_per_snapshot": {
+        "min": 0,
+        "max": 0,
+        "mean": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "n": 0
+      },
+      "active_bytes": 0,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 249.3359375,
+      "wall_time_at_level_s": 0.274792461656034,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 1,
+      "n_nodes_total": 5,
+      "n_nodes_added_this_level": 2,
+      "n_flagged_edges": 2,
+      "k_per_snapshot": {
+        "min": 0,
+        "max": 0,
+        "mean": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "n": 0
+      },
+      "active_bytes": 0,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 249.3359375,
+      "wall_time_at_level_s": 0.40887734293937683,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 2,
+      "n_nodes_total": 7,
+      "n_nodes_added_this_level": 2,
+      "n_flagged_edges": 1,
+      "k_per_snapshot": {
+        "min": 0,
+        "max": 0,
+        "mean": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "n": 0
+      },
+      "active_bytes": 0,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 249.3359375,
+      "wall_time_at_level_s": 0.5413783728145063,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 3,
+      "n_nodes_total": 8,
+      "n_nodes_added_this_level": 1,
+      "n_flagged_edges": 0,
+      "k_per_snapshot": {
+        "min": 0,
+        "max": 0,
+        "mean": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "n": 0
+      },
+      "active_bytes": 0,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 249.3359375,
+      "wall_time_at_level_s": 0.6037592636421323,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    }
+  ],
+  "verdicts": {
+    "CERTIFIED": 25,
+    "REFINE": 10,
+    "ENTERED": 7,
+    "EXITED": 10,
+    "CLUSTER": 2
+  },
+  "growth_fit": {
+    "n_nodes": {
+      "exponent": 0.7252466190095123,
+      "r_squared": 0.9948828490356902,
+      "n_points": 4
+    }
+  },
+  "oom_autopsy": null,
+  "region_summary": null
+}

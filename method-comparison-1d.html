@@ -1,0 +1,1907 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.57">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>method-comparison-1d – The adaptive-greedy parametric eigenvalue solver</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script>
+// Collapse sidebar sections on load; only expand the one with the active page.
+(function () {
+  function collapseSidebarSections() {
+    var sections = document.querySelectorAll(".sidebar-section");
+    var activeSection = null;
+    sections.forEach(function (sec) {
+      if (sec.querySelector(".sidebar-item-text.active, .sidebar-link.active")) {
+        activeSection = sec;
+      }
+    });
+    sections.forEach(function (sec) {
+      if (sec === activeSection) return;
+      sec.classList.remove("show");
+    });
+    // Sync aria-expanded on the toggle buttons.
+    document.querySelectorAll("[data-bs-target^='#quarto-sidebar-section']").forEach(function (btn) {
+      var target = document.querySelector(btn.getAttribute("data-bs-target"));
+      if (target) {
+        btn.setAttribute("aria-expanded", target.classList.contains("show") ? "true" : "false");
+      }
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", collapseSidebarSections);
+  } else {
+    collapseSidebarSections();
+  }
+})();
+</script>
+
+<script>
+// Per-level refinement-animation widget.
+// Auto-initialises every element matching `.level-scroll[data-frames]`.
+// data-frames: comma-separated image URLs (one per refinement level).
+// data-caption: template; "{i}" → frame index + data-level-start (default 0).
+(function () {
+  function init(el) {
+    var frames = (el.dataset.frames || "")
+      .split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+    if (frames.length === 0) return;
+    var captionTpl = el.dataset.caption || "L={i}";
+    var levelStart = parseInt(el.dataset.levelStart || "0", 10);
+    var img = el.querySelector("img.frame");
+    var slider = el.querySelector("input[type=range]");
+    var caption = el.querySelector(".caption .level");
+    if (!img || !slider || !caption) return;
+    slider.min = "0";
+    slider.max = String(frames.length - 1);
+    slider.step = "1";
+    if (!slider.value) slider.value = "0";
+    function render(idx) {
+      var i = Math.max(0, Math.min(frames.length - 1, idx));
+      img.src = frames[i];
+      caption.textContent = captionTpl.replace("{i}", String(i + levelStart));
+    }
+    slider.addEventListener("input", function () {
+      render(parseInt(slider.value, 10));
+    });
+    el.tabIndex = 0;
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") {
+        slider.value = String(Math.max(0, parseInt(slider.value, 10) - 1));
+        render(parseInt(slider.value, 10));
+        e.preventDefault();
+      } else if (e.key === "ArrowRight") {
+        slider.value = String(Math.min(frames.length - 1, parseInt(slider.value, 10) + 1));
+        render(parseInt(slider.value, 10));
+        e.preventDefault();
+      }
+    });
+    render(parseInt(slider.value, 10));
+  }
+  function initAll() {
+    var els = document.querySelectorAll(".level-scroll[data-frames]");
+    for (var i = 0; i < els.length; i++) init(els[i]);
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAll);
+  } else {
+    initAll();
+  }
+})();
+</script>
+
+
+<link rel="stylesheet" href="assets/level-scroll.css">
+</head>
+
+<body class="nav-sidebar docked nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">The adaptive-greedy parametric eigenvalue solver</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/Moatazg/pevp-rebuild"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./studies.html">Studies</a></li><li class="breadcrumb-item"><a href="./method-comparison-1d.html">Methods for the 1D Parametric Eigenvalue Problem: A Comparison Framework</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Validation</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/spectrum-samples.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Is the finite-element substrate trustworthy?</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/affine-cache-cross-check.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Affine-cache cross-check</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Demonstrations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./demonstrations.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/diffusion-3-3-2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D diffusion eigenproblem with a one-parameter coefficient</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/diffusion-3-3-3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D diffusion eigenproblem with a two-parameter coefficient</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/elasticity-2d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D plane-stress elasticity eigenproblem</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/elasticity-4-4-campaign.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">§4.4 6D campaign — quality demonstration at scale</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/elasticity-4-4-evidence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">§4.4 6D campaign — the correctness evidence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/rom-vs-dense.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ROM vs dense FE sweep</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/two-chamber-resonator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Two-Chamber Resonator — the Minimal Crossing Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Mechanisms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mechanisms.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/crossing-and-projection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Persistent Π Failures at Eigenvalue Crossings</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/domain-decomposition.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Dynamic domain decomposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sensitivity</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sensitivity.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/mesh-independence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Mesh independence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/tolerance-perturbation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Tolerance perturbation — how load-bearing is the threshold choice?</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/knob-sweep.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Knob sweep — how sensitive is the grid to the thresholds?</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Studies</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studies.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./why-this-algorithm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Why the adaptive-greedy algorithm for parametric eigenvalue problems</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./method-comparison-1d.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Methods for the 1D Parametric Eigenvalue Problem: A Comparison Framework</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./strategy-comparison.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Refinement strategy A/B: edge-bisection vs hierarchical (measured)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./coverage-policy-validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cost-Accuracy Validation of the Composite Refinement Policy π⋆</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./runtime-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Runtime analysis: the one-path verdict vs the retired span/tracking modes (measured)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./parallel-execution.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Real Parallel Execution of Domain-Decomposition Refinement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./region-parallel-speedup.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Projected Parallel Speedup of Dynamic Domain Decomposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Methodology</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">How it works — the algorithm end to end</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Correctness Techniques in <code>pevp-rebuild</code></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reference correctness-demonstration techniques</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Acknowledged issues in the adaptive-greedy pEVP algorithm</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Algorithm Parity Audit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Rebuild vs dissertation — the three-way divergence record</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open Methodological Questions for Validating the Rebuilt pEVP Algorithm</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open Research and Architecture Problems for the pEVP Rebuild</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open-Problems Status Register</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">The partial sparse grid, formally — admissible subtree ↔︎ lower set, directional surplus, hanging nodes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Classifying Eigenvalue-Crossing Type Beyond the Block Matrix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sheet decomposition: matching-driven hypersurfaces and the plaquette holonomy certificate</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Dynamic Domain Decomposition of the Parameter Space</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Hierarchical refinement strategy and the one-sided parent↔︎child verdict</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#methods-for-the-1d-parametric-eigenvalue-problem-a-comparison-framework" id="toc-methods-for-the-1d-parametric-eigenvalue-problem-a-comparison-framework" class="nav-link active" data-scroll-target="#methods-for-the-1d-parametric-eigenvalue-problem-a-comparison-framework">Methods for the 1D Parametric Eigenvalue Problem: A Comparison Framework</a>
+  <ul class="collapse">
+  <li><a href="#the-reference-method-adaptive-greedy" id="toc-the-reference-method-adaptive-greedy" class="nav-link" data-scroll-target="#the-reference-method-adaptive-greedy">1. The reference method: adaptive-greedy</a></li>
+  <li><a href="#reference-baselines" id="toc-reference-baselines" class="nav-link" data-scroll-target="#reference-baselines">2. Reference baselines</a>
+  <ul class="collapse">
+  <li><a href="#a.-uniform-dense-grid-cold-eigensolve-per-node" id="toc-a.-uniform-dense-grid-cold-eigensolve-per-node" class="nav-link" data-scroll-target="#a.-uniform-dense-grid-cold-eigensolve-per-node">2A. Uniform dense grid + cold eigensolve per node</a></li>
+  <li><a href="#b.-dense-grid-hungarian-branch-tracking" id="toc-b.-dense-grid-hungarian-branch-tracking" class="nav-link" data-scroll-target="#b.-dense-grid-hungarian-branch-tracking">2B. Dense grid + Hungarian branch tracking</a></li>
+  </ul></li>
+  <li><a href="#solver-level-continuation-per-eigensolve-reuse" id="toc-solver-level-continuation-per-eigensolve-reuse" class="nav-link" data-scroll-target="#solver-level-continuation-per-eigensolve-reuse">3. Solver-level continuation (per-eigensolve reuse)</a>
+  <ul class="collapse">
+  <li><a href="#a.-warm-started-lobpcg-along-a-µ-path" id="toc-a.-warm-started-lobpcg-along-a-µ-path" class="nav-link" data-scroll-target="#a.-warm-started-lobpcg-along-a-µ-path">3A. Warm-started LOBPCG along a <code>µ</code>-path</a></li>
+  <li><a href="#b.-krylovschur-with-subspace-recycling" id="toc-b.-krylovschur-with-subspace-recycling" class="nav-link" data-scroll-target="#b.-krylovschur-with-subspace-recycling">3B. Krylov–Schur with subspace recycling</a></li>
+  </ul></li>
+  <li><a href="#smooth-regime-perturbation-ode-continuation" id="toc-smooth-regime-perturbation-ode-continuation" class="nav-link" data-scroll-target="#smooth-regime-perturbation-ode-continuation">4. Smooth-regime perturbation / ODE continuation</a>
+  <ul class="collapse">
+  <li><a href="#a.-analytic-eigenvalue-derivative-rellich-hellmannfeynman" id="toc-a.-analytic-eigenvalue-derivative-rellich-hellmannfeynman" class="nav-link" data-scroll-target="#a.-analytic-eigenvalue-derivative-rellich-hellmannfeynman">4A. Analytic eigenvalue derivative (Rellich / Hellmann–Feynman)</a></li>
+  <li><a href="#b.-predictorcorrector-continuation-arc-length" id="toc-b.-predictorcorrector-continuation-arc-length" class="nav-link" data-scroll-target="#b.-predictorcorrector-continuation-arc-length">4B. Predictor–corrector continuation (arc-length)</a></li>
+  <li><a href="#c.-subspace-continuation-on-the-grassmannian" id="toc-c.-subspace-continuation-on-the-grassmannian" class="nav-link" data-scroll-target="#c.-subspace-continuation-on-the-grassmannian">4C. Subspace continuation on the Grassmannian</a></li>
+  </ul></li>
+  <li><a href="#surrogate-reduced-basis-methods-offlineonline-split" id="toc-surrogate-reduced-basis-methods-offlineonline-split" class="nav-link" data-scroll-target="#surrogate-reduced-basis-methods-offlineonline-split">5. Surrogate / reduced-basis methods (offline–online split)</a>
+  <ul class="collapse">
+  <li><a href="#a.-polynomial-chebyshev-interpolation-of-kµ-mµ" id="toc-a.-polynomial-chebyshev-interpolation-of-kµ-mµ" class="nav-link" data-scroll-target="#a.-polynomial-chebyshev-interpolation-of-kµ-mµ">5A. Polynomial / Chebyshev interpolation of <code>K(µ)</code>, <code>M(µ)</code></a></li>
+  <li><a href="#b.-reduced-basis-pod-on-snapshots" id="toc-b.-reduced-basis-pod-on-snapshots" class="nav-link" data-scroll-target="#b.-reduced-basis-pod-on-snapshots">5B. Reduced-basis (POD on snapshots)</a></li>
+  <li><a href="#c.-greedy-reduced-basis-madaypatera-rbm" id="toc-c.-greedy-reduced-basis-madaypatera-rbm" class="nav-link" data-scroll-target="#c.-greedy-reduced-basis-madaypatera-rbm">5C. Greedy reduced basis (Maday–Patera RBM)</a></li>
+  <li><a href="#d.-direct-interpolation-of-λ_nµ-per-branch" id="toc-d.-direct-interpolation-of-λ_nµ-per-branch" class="nav-link" data-scroll-target="#d.-direct-interpolation-of-λ_nµ-per-branch">5D. Direct interpolation of <code>λ_n(µ)</code> per branch</a></li>
+  </ul></li>
+  <li><a href="#contour-integral-spectral-methods" id="toc-contour-integral-spectral-methods" class="nav-link" data-scroll-target="#contour-integral-spectral-methods">6. Contour-integral spectral methods</a>
+  <ul class="collapse">
+  <li><a href="#a.-feast-sakuraisugiura-at-each-µ_j" id="toc-a.-feast-sakuraisugiura-at-each-µ_j" class="nav-link" data-scroll-target="#a.-feast-sakuraisugiura-at-each-µ_j">6A. FEAST / Sakurai–Sugiura at each <code>µ_j</code></a></li>
+  </ul></li>
+  <li><a href="#symbolic-characteristic-polynomial-methods-very-low-dim-only" id="toc-symbolic-characteristic-polynomial-methods-very-low-dim-only" class="nav-link" data-scroll-target="#symbolic-characteristic-polynomial-methods-very-low-dim-only">7. Symbolic / characteristic-polynomial methods (very low-dim only)</a></li>
+  <li><a href="#comparison-axes-what-an-experiment-would-measure" id="toc-comparison-axes-what-an-experiment-would-measure" class="nav-link" data-scroll-target="#comparison-axes-what-an-experiment-would-measure">8. Comparison axes — what an experiment would measure</a></li>
+  <li><a href="#candidate-experiments-worth-scoping" id="toc-candidate-experiments-worth-scoping" class="nav-link" data-scroll-target="#candidate-experiments-worth-scoping">9. Candidate experiments worth scoping</a></li>
+  <li><a href="#what-this-document-is-not" id="toc-what-this-document-is-not" class="nav-link" data-scroll-target="#what-this-document-is-not">10. What this document is not</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><div class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./studies.html">Studies</a></li><li class="breadcrumb-item"><a href="./method-comparison-1d.html">Methods for the 1D Parametric Eigenvalue Problem: A Comparison Framework</a></li></ol></nav><div class="quarto-title-tools-only"><h1></h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+
+
+
+
+<section id="methods-for-the-1d-parametric-eigenvalue-problem-a-comparison-framework" class="level1">
+<h1>Methods for the 1D Parametric Eigenvalue Problem: A Comparison Framework</h1>
+<blockquote class="blockquote">
+<p><strong>What is on this page.</strong> A catalogue of methods for solving the parametric eigenvalue problem (pEVP) in one parameter dimension, framed as a basis for later head-to-head numerical experiments against the adaptive-greedy algorithm. The source work (Alghamdi 2025) introduces the adaptive-greedy method but does <strong>not</strong> compare it against alternatives — this document fills that gap so that future numerical experiments can pin “the greedy algorithm is X% faster / more accurate than method Y under conditions Z” as measurable claims rather than assumptions. Companion pages on this site document the rebuild’s own measured properties; the open methodological questions are collected in a companion research note (not yet published).</p>
+<p><strong>Scope.</strong> 1D only (one parameter dimension, <code>d = 1</code>). Symmetric-definite generalised eigenvalue problem: <code>K(µ) u = λ M(µ) u</code> with <code>K(µ), M(µ) ∈ ℝ^{n×n}</code> sparse, symmetric, <code>M(µ)</code> positive definite, <code>µ ∈ [µ_lo, µ_hi] ⊂ ℝ</code>. Affine-in-coefficient assembly is the reference problems’ regime; some methods exploit that structure, others don’t.</p>
+</blockquote>
+<hr>
+<section id="the-reference-method-adaptive-greedy" class="level2">
+<h2 class="anchored" data-anchor-id="the-reference-method-adaptive-greedy">1. The reference method: adaptive-greedy</h2>
+<p>This is the baseline every other method is compared <em>against</em>. It is <strong>not the first thing tried</strong> in the literature — it is a recent contribution (Alghamdi 2025) — but in this document it plays the role of the reference because that is the codebase the comparisons feed back into.</p>
+<p><strong>Idea.</strong> Sample <code>µ</code> adaptively on a sparse grid. At each edge of the grid, perform a posteriori certification: a matched eigenpair is certified if its eigenvector overlap with the partner at the other endpoint is essentially diagonal (off-diagonal projection mass below <code>t_π</code>, eigenvalue separation above <code>t_λ</code>). Edges that fail certification are bisected; the loop runs until no edge is flagged or a maximum refinement level is reached.</p>
+<p><strong>Cost model.</strong> Let <code>C_eig</code> be the cost of one cold eigensolve at the working <code>n_dof</code>. The greedy loop performs one eigensolve per node, one cost-matrix + Hungarian assignment + a posteriori matrix construction per edge. Eigensolves dominate; assignment and projection are O(<code>k³</code>) and O(<code>k² · n_dof</code>) respectively, both negligible for <code>n_dof ≫ k</code>.</p>
+<p>Let <code>N_nodes(L)</code> be the number of nodes after <code>L</code> refinement levels. Total cost ≈ <code>N_nodes(L) · C_eig</code> plus a small linear-algebra overhead per edge.</p>
+<p><strong>Where it shines.</strong></p>
+<ul>
+<li>Crossings can be located with grid spacing only as fine as needed for the verifier to certify around them.</li>
+<li>Smooth regions get sparse sampling automatically — no manual grid design.</li>
+<li>The basis built along the way (the snapshot store) is reusable for post-hoc ROM evaluation.</li>
+</ul>
+<p><strong>Where it breaks / what to watch for.</strong></p>
+<ul>
+<li>The termination criterion is structural, not error-bounded: the loop stops when no edge is flagged, but no a-priori bound ties that fixed point to a target accuracy <code>|λ_h − λ| ≤ ε</code>. What termination actually certifies is examined in a companion research note (not yet published) on open methodological questions.</li>
+<li>Window mode’s window-entry / window-exit labels are a rebuild-only interpretation layer, not a measurement — no curve identification exists behind them. With the maximum refinement level raised above its default, this can drive the loop to the cap on boundary geometry rather than on basis failure.</li>
+<li>Tolerances <code>(t_π, t_λ)</code> are chosen by trial and error, with no principled selection rule; a 20% perturbation can flip termination level and degrade ROM accuracy by an order of magnitude — see the <a href="./examples/tolerance-perturbation.html">tolerance-perturbation page</a>.</li>
+<li>Reproducing the reference §3.3.3 Table 2D Error per-level counts failed across the full set of tunable knobs available to the rebuild (verdict mode, pruning rule, eigenvector cluster rewrite, cluster exemption, refinement topology). The published table appears to come from a driver not in the source dump; the reproduction gap is documented in a companion research note (not yet published).</li>
+</ul>
+<hr>
+</section>
+<section id="reference-baselines" class="level2">
+<h2 class="anchored" data-anchor-id="reference-baselines">2. Reference baselines</h2>
+<p>These are not comparison “methods” in the same sense as §3–§7. They are what greedy is <em>measured against</em>: the cost denominator (§2A) and the branch-identity oracle (§2B). They are the honest framing of “how cheap can we be without being clever” (§2A) and “what would a ground-truth tracker cost” (§2B).</p>
+<section id="a.-uniform-dense-grid-cold-eigensolve-per-node" class="level3">
+<h3 class="anchored" data-anchor-id="a.-uniform-dense-grid-cold-eigensolve-per-node">2A. Uniform dense grid + cold eigensolve per node</h3>
+<p><strong>Idea.</strong> Sample <code>µ_j = µ_lo + j · h</code> for <code>j = 0..N</code>. At each <code>µ_j</code> solve <code>K(µ_j) v = λ M(µ_j) v</code> from scratch.</p>
+<p><strong>Cost.</strong> <code>N · C_eig</code> exactly. No reuse.</p>
+<p><strong>Where it shines.</strong></p>
+<ul>
+<li>Trivial to implement and debug — this is the rebuild’s dense reference sweep used to generate truth data for accuracy measurements.</li>
+<li>Embarrassingly parallel across <code>µ</code>.</li>
+<li>Error from grid spacing is bounded by smoothness of <code>λ_n(µ)</code> and obvious to control: halve <code>h</code>, error roughly halves between crossings.</li>
+<li>No tolerance trial-and-error; no termination ambiguity.</li>
+</ul>
+<p><strong>Where it breaks.</strong></p>
+<ul>
+<li>Sample count is fixed in advance — wasteful in smooth regions, potentially under-resolved near crossings.</li>
+<li>Branch tracking is post-hoc (see 2B); the raw eigensolve output is sorted-ascending and does not respect curve identity.</li>
+<li>No reusable basis emerges; downstream ROM evaluation requires a separate construction.</li>
+</ul>
+<p><strong>Role in comparison.</strong> §2A is the <em>cost denominator</em> for every method below — not a competitor of the greedy algorithm. Pick a target accuracy <code>ε</code>. Find the coarsest uniform grid such that <code>max_µ |λ_uniform(µ) − λ_dense(µ)| &lt; ε</code>. The adaptivity ratio <code>N_nodes_uniform(ε) / N_nodes_greedy(ε)</code> on §3.3.2 is a number the reference leaves unreported, and the headline figure any greedy-vs- alternative experiment depends on. The question is <em>what the ratio is</em>, not which side wins.</p>
+</section>
+<section id="b.-dense-grid-hungarian-branch-tracking" class="level3">
+<h3 class="anchored" data-anchor-id="b.-dense-grid-hungarian-branch-tracking">2B. Dense grid + Hungarian branch tracking</h3>
+<p><strong>Idea.</strong> As 2A, plus: between every adjacent pair <code>(µ_j, µ_{j+1})</code>, run cost-matrix + Hungarian assignment on eigenvector overlaps to tag each eigenpair with a continuous branch label. This is the rebuild’s branch-tracking pass used to assemble tracked-spectrum figures.</p>
+<p><strong>Cost.</strong> 2A plus <code>O((N − 1) · k²)</code> matching work — dominated by 2A’s eigensolves at any realistic problem size.</p>
+<p><strong>Where it shines.</strong> Solves the curve-identity problem that the greedy algorithm’s Window mode cannot resolve. Output is “<code>λ_n(µ_j)</code> for branch <code>n = 1..k</code>, <code>j = 0..N</code>” — a fully tracked spectrum.</p>
+<p><strong>Where it breaks.</strong> Cost is the cost of 2A; no reuse of parametric structure. Hungarian matching itself fails the same way Window-mode matching does when adjacent-sample eigenvectors collapse near a crossing — the symptom is gauge-dependent branch label swaps.</p>
+<p><strong>Role in comparison.</strong> §2B is the <em>branch-identity oracle</em>: the “expensive correct” baseline for branch tracking that the greedy is trying to be a cheaper version of. Useful both as ground-truth for any branch-identity metric and as a cost upper bound that any pEVP method should beat.</p>
+<hr>
+</section>
+</section>
+<section id="solver-level-continuation-per-eigensolve-reuse" class="level2">
+<h2 class="anchored" data-anchor-id="solver-level-continuation-per-eigensolve-reuse">3. Solver-level continuation (per-eigensolve reuse)</h2>
+<p>These methods accelerate the <em>individual</em> eigensolve at each <code>µ_j</code> by reusing work from the previous one. Sample count stays the same as 2A; per-sample cost goes down.</p>
+<section id="a.-warm-started-lobpcg-along-a-µ-path" class="level3">
+<h3 class="anchored" data-anchor-id="a.-warm-started-lobpcg-along-a-µ-path">3A. Warm-started LOBPCG along a <code>µ</code>-path</h3>
+<p><strong>Idea.</strong> Use the eigenvectors at <code>µ_{j-1}</code> as the initial block for LOBPCG at <code>µ_j</code>. Optionally with Jacobi or AMG preconditioning.</p>
+<p><strong>Cost.</strong> Per-iteration ≈ a few matvecs; total per <code>µ_j</code> is <code>O(k · n_dof)</code> in matvecs plus <code>O(k³)</code> Rayleigh–Ritz, with iteration count dropping sharply as the warm start improves.</p>
+<p><strong>Where it shines.</strong> Smooth regions where consecutive eigenpairs are close — convergence in 2-5 iterations.</p>
+<p><strong>Where it breaks.</strong></p>
+<ul>
+<li>In the rebuild’s measurements at <code>n_dof ≤ 10⁴</code> (the reference problems’ regime), warm-started LOBPCG with Jacobi preconditioning is <strong>5–10× slower</strong> than ARPACK shift-invert. The crossover would require either much larger <code>n_dof</code> or AMG-class preconditioning.</li>
+<li>Block reorganization at crossings is awkward — the closest-eigenvalue continuation isn’t always the right pairing.</li>
+</ul>
+<p><strong>Head-to-head against the greedy.</strong> The experiment runs 2A with warm-started LOBPCG at each node and compares total wall time and accuracy against greedy’s <code>N_nodes · C_eig</code>. It measures whether solver-level reuse alone can close the sample-count gap that adaptive sampling exploits. Caveat: needs an <code>n_dof</code> large enough that LOBPCG is competitive in the first place — the reference problems’ regime isn’t.</p>
+</section>
+<section id="b.-krylovschur-with-subspace-recycling" class="level3">
+<h3 class="anchored" data-anchor-id="b.-krylovschur-with-subspace-recycling">3B. Krylov–Schur with subspace recycling</h3>
+<p><strong>Idea.</strong> Same family as 3A; SLEPc-style implementation. Reuse the prior step’s Krylov subspace as the starting basis.</p>
+<p><strong>Cost.</strong> Comparable to 3A; the trade-off between block size and restart depth tunes differently.</p>
+<p><strong>Status.</strong> Not implemented in the rebuild. Worth measuring once AMG-class preconditioning is integrated; until then ARPACK cold-start is the default for principled reasons.</p>
+<hr>
+</section>
+</section>
+<section id="smooth-regime-perturbation-ode-continuation" class="level2">
+<h2 class="anchored" data-anchor-id="smooth-regime-perturbation-ode-continuation">4. Smooth-regime perturbation / ODE continuation</h2>
+<p>These methods don’t sample the parameter at all in smooth regions — they integrate the eigenpair forward in <code>µ</code> using analytic derivatives.</p>
+<section id="a.-analytic-eigenvalue-derivative-rellich-hellmannfeynman" class="level3">
+<h3 class="anchored" data-anchor-id="a.-analytic-eigenvalue-derivative-rellich-hellmannfeynman">4A. Analytic eigenvalue derivative (Rellich / Hellmann–Feynman)</h3>
+<p><strong>Idea.</strong> For a simple eigenpair <code>(λ(µ), v(µ))</code> of a symmetric problem:</p>
+<pre><code>dλ/dµ = vᵀ (∂K/∂µ − λ ∂M/∂µ) v / (vᵀ M v)</code></pre>
+<p>The eigenvector derivative satisfies a singular linear system that can be solved by either spectral projection or by augmenting with the normalisation constraint. For <em>affine-in-µ</em> problems (the reference problems’ regime), <code>∂K/∂µ</code> and <code>∂M/∂µ</code> are constant — assembled once.</p>
+<p><strong>Cost per step.</strong> One Taylor (or Padé) extrapolation; no eigensolve required. Per-step cost is one matvec for the derivative formula plus the linear solve for <code>v'</code>. <strong>Order of magnitude cheaper than a full eigensolve.</strong></p>
+<p><strong>Where it shines.</strong> Smooth, well-separated branches. The predictor’s accuracy is <code>O(h^p)</code> for a <code>p</code>-th-order Taylor step; stepping all the way across <code>[µ_lo, µ_hi]</code> from one cold solve at <code>µ_lo</code> is feasible when no crossings occur.</p>
+<p><strong>Where it breaks.</strong></p>
+<ul>
+<li><strong>Essential singularity at every crossing.</strong> <code>dλ_i/dµ</code> blows up as <code>λ_i → λ_j</code> because the eigenvector derivative requires <code>(K − λ M)</code> to be invertible on the orthogonal complement of <code>v</code>, and that fails at crossings. Two distinct branches need to <em>exchange</em> eigenvectors smoothly, which the formula above does not describe.</li>
+<li>Branch identity is fragile: which eigenpair <code>(λ_i, v_i)</code> the integrator “is on” is determined by the initial pick; near an avoided crossing the integrator may follow the wrong branch.</li>
+<li>Requires a <em>corrector</em> (Newton or a full eigensolve) periodically to prevent drift — pure predictor accumulates error.</li>
+</ul>
+<p><strong>Head-to-head against the greedy.</strong> Measures the cost-per-unit-µ of analytic continuation in the smooth-only regime, and how far the method degrades when crossings are present. The experiment benchmarks 4A on a problem with no crossings (or with crossings manually excised) and on the §3.3.2 problem with crossings; the crossing case answers whether a pure predictor without branch switching is salvageable at all.</p>
+</section>
+<section id="b.-predictorcorrector-continuation-arc-length" class="level3">
+<h3 class="anchored" data-anchor-id="b.-predictorcorrector-continuation-arc-length">4B. Predictor–corrector continuation (arc-length)</h3>
+<p><strong>Idea.</strong> 4A as predictor; full eigensolve at fixed <code>µ</code> (or arc-length-parameterised step) as corrector. Branch switching at detected crossings via a <em>test function</em> (e.g., sign change of an eigenvalue gap).</p>
+<p><strong>Cost.</strong> Per accepted step: one predictor (cheap) + one corrector (expensive but possibly warm-started). Step length adapts to local curvature of <code>λ(µ)</code>.</p>
+<p><strong>Where it shines.</strong> Smooth-regime efficiency of 4A combined with recovery at crossings. This is the classical numerical continuation playbook (Keller, Allgower–Georg).</p>
+<p><strong>Where it breaks.</strong></p>
+<ul>
+<li>Branch switching at crossings is delicate. The greedy algorithm’s Hungarian matching is, in effect, a discrete branch-switching rule applied at every sampled edge. 4B has to do the same thing but with finer control over <em>when</em> to apply it (only at detected crossings, not at every step).</li>
+<li>Corrector cost dominates when crossings are dense.</li>
+</ul>
+<p><strong>Head-to-head against the greedy.</strong> Measures where each method spends its eigensolves: 4B does eigensolves at detected crossings; the greedy does eigensolves at every bisection level around crossings, including levels that fire on window-entry / window-exit interpretation rather than on basis failure. The metric is eigensolve count to a fixed <code>ε</code> accuracy on §3.3.2.</p>
+</section>
+<section id="c.-subspace-continuation-on-the-grassmannian" class="level3">
+<h3 class="anchored" data-anchor-id="c.-subspace-continuation-on-the-grassmannian">4C. Subspace continuation on the Grassmannian</h3>
+<p><strong>Idea.</strong> Instead of tracking individual eigenpairs, track the <em>invariant subspace</em> spanned by the lowest <code>k</code> eigenvectors. The subspace is robust through crossings — only the basis of the subspace rotates. Methods: Mehrmann–Schwetlick, Davis–Kahan perturbation bounds.</p>
+<p><strong>Cost.</strong> A <code>k</code>-dimensional subspace ODE integrated in <code>µ</code>; periodic projection back onto the eigenproblem manifold via Rayleigh–Ritz.</p>
+<p><strong>Where it shines.</strong> Robust through crossings — the bottleneck of 4A and 4B. The price is that individual branches are not tracked during the continuation; they are recovered post-hoc by diagonalising the projected matrix.</p>
+<p><strong>Where it breaks.</strong> Mathematically clean, computationally non-trivial; not a “turn the crank” method. The literature is specialised and the off-the-shelf software is thin.</p>
+<p><strong>Head-to-head.</strong> The most interesting comparison for the crossing-heavy regime the adaptive-greedy method targets. Worth a literature survey before any numerical experiment.</p>
+<hr>
+</section>
+</section>
+<section id="surrogate-reduced-basis-methods-offlineonline-split" class="level2">
+<h2 class="anchored" data-anchor-id="surrogate-reduced-basis-methods-offlineonline-split">5. Surrogate / reduced-basis methods (offline–online split)</h2>
+<p>These methods build a global surrogate from a training set of snapshots, then evaluate cheaply at any query <code>µ</code>.</p>
+<section id="a.-polynomial-chebyshev-interpolation-of-kµ-mµ" class="level3">
+<h3 class="anchored" data-anchor-id="a.-polynomial-chebyshev-interpolation-of-kµ-mµ">5A. Polynomial / Chebyshev interpolation of <code>K(µ)</code>, <code>M(µ)</code></h3>
+<p><strong>Idea.</strong> Sample <code>K(µ_j)</code>, <code>M(µ_j)</code> at Chebyshev nodes; interpolate component-wise. The resulting <code>K̃(µ)</code>, <code>M̃(µ)</code> are polynomial in <code>µ</code>. The reduced problem <code>K̃(µ) u = λ M̃(µ) u</code> is a polynomial eigenvalue problem (PEP) — solvable once globally via companion linearisation.</p>
+<p><strong>Cost.</strong> <code>N_cheb</code> assemblies offline; one PEP solve online at the chosen <code>µ</code> (no extra eigensolves for additional <code>µ</code>).</p>
+<p><strong>Where it shines.</strong> Affine-in-<code>µ</code> problems: interpolation is exact with <code>N_cheb = degree(µ) + 1</code> nodes. The §3.3.2 benchmark problem has <code>K(µ) = µ⁻² K_1 + K_2</code> — not polynomial in <code>µ</code>, but polynomial in <code>µ⁻²</code>. So Chebyshev in <code>t = µ⁻²</code> gives an exact representation with 2 nodes.</p>
+<p><strong>Where it breaks.</strong> <code>λ(µ)</code> is <em>not</em> polynomial in <code>µ</code> even when <code>K(µ)</code>, <code>M(µ)</code> are — it’s an algebraic function. The PEP-of-an- interpolant approach gives access to <em>all</em> <code>n_dof</code> eigenvalues, not just the lowest <code>k</code>, so band-selection (first-k or window) must be imposed afterwards.</p>
+<p><strong>Head-to-head against the greedy.</strong> For affine problems, this measures whether the greedy’s sample count exceeds the structural minimum dictated by the polynomial degree of <code>K(µ)</code>, <code>M(µ)</code> (2 for §3.3.2). The reference L=0..L=3 grid sizes for §3.3.2 are far above that minimum; the experiment quantifies <em>how far above</em> and allocates the excess between branch-identity costs and verdict-loop overhead.</p>
+</section>
+<section id="b.-reduced-basis-pod-on-snapshots" class="level3">
+<h3 class="anchored" data-anchor-id="b.-reduced-basis-pod-on-snapshots">5B. Reduced-basis (POD on snapshots)</h3>
+<p><strong>Idea.</strong> Sample <code>µ</code> at a training set; collect eigenvectors; SVD → reduced basis <code>V ∈ ℝ^{n_dof × r}</code>. For any query <code>µ</code>, solve the reduced problem <code>Vᵀ K(µ) V x = λ Vᵀ M(µ) V x</code>.</p>
+<p><strong>Cost.</strong> Offline: <code>N_train · C_eig</code> + SVD. Online: one <code>r × r</code> dense GEVP per query.</p>
+<p><strong>Where it shines.</strong> Many queries on a fixed parameter range. Same idea as the snapshot store in the rebuild — but with <em>fixed</em> offline training, not adaptive.</p>
+<p><strong>Where it breaks.</strong></p>
+<ul>
+<li>Choice of training set is manual or heuristic. The greedy algorithm exists precisely to remove this choice.</li>
+<li>Accuracy depends on whether the training set captured the parametric behaviour; no a posteriori certificate.</li>
+</ul>
+<p><strong>Head-to-head against the greedy.</strong> Train 5B on the greedy’s terminal grid versus on a uniform grid of the same size, and compare ROM accuracy at unseen <code>µ</code>. This measures whether the greedy’s sample <em>selection</em> adds value beyond just selecting that <em>many</em> samples. If a uniform grid of the same node count gives comparable accuracy, the greedy’s adaptivity is buying very little.</p>
+</section>
+<section id="c.-greedy-reduced-basis-madaypatera-rbm" class="level3">
+<h3 class="anchored" data-anchor-id="c.-greedy-reduced-basis-madaypatera-rbm">5C. Greedy reduced basis (Maday–Patera RBM)</h3>
+<p><strong>Idea.</strong> Classic reduced-basis method with a greedy training-set selection driven by an a posteriori error estimator. The adaptive-greedy algorithm sits in this family — the specific innovations being (i) sparse-grid topology over parameter space, (ii) the projection-mass verdict, and (iii) window-entry / window-exit labelling for windowed band selection.</p>
+<p><strong>Head-to-head against the rebuild’s specific algorithm.</strong> Substitute the reference method’s verdict for the classical residual-norm estimator <code>η(µ) = ‖K(µ) V x − λ M(µ) V x‖ / ‖M(µ) V x‖</code> and measure how the refinement trajectory differs. The classical estimator is <em>error-driven</em>; the adaptive-greedy’s is <em>projection-driven</em>. These are not equivalent, and the experiment quantifies which one selects more useful samples on a fixed problem.</p>
+</section>
+<section id="d.-direct-interpolation-of-λ_nµ-per-branch" class="level3">
+<h3 class="anchored" data-anchor-id="d.-direct-interpolation-of-λ_nµ-per-branch">5D. Direct interpolation of <code>λ_n(µ)</code> per branch</h3>
+<p><strong>Idea.</strong> Sample a dense <code>µ</code>-grid, run 2B to get branch-tracked eigenvalues, then fit a smooth interpolant (cubic spline, Chebyshev, radial basis function) to each branch independently.</p>
+<p><strong>Cost.</strong> Same as 2B offline; trivial online.</p>
+<p><strong>Where it shines.</strong> Smooth branches in smooth regions; the interpolant captures <code>λ_n(µ)</code> to machine precision with few nodes per branch.</p>
+<p><strong>Where it breaks.</strong> Crossings: interpolating across a crossing mixes branches. Has to be combined with explicit crossing detection to subdivide the interval.</p>
+<p><strong>Head-to-head.</strong> This is the simplest possible surrogate that uses branch information. If the goal is just <code>λ_n(µ)</code> evaluation (not eigenvector evaluation), the experiment measures whether anything fancier than per-branch interpolation pays off in 1D.</p>
+<hr>
+</section>
+</section>
+<section id="contour-integral-spectral-methods" class="level2">
+<h2 class="anchored" data-anchor-id="contour-integral-spectral-methods">6. Contour-integral spectral methods</h2>
+<p>These methods are window-mode native: they compute eigenpairs in a prescribed <code>[λ_lo, λ_hi]</code> without computing the rest of the spectrum.</p>
+<section id="a.-feast-sakuraisugiura-at-each-µ_j" class="level3">
+<h3 class="anchored" data-anchor-id="a.-feast-sakuraisugiura-at-each-µ_j">6A. FEAST / Sakurai–Sugiura at each <code>µ_j</code></h3>
+<p><strong>Idea.</strong> Enclose <code>[λ_lo, λ_hi]</code> in a complex contour. Approximate the spectral projector onto the enclosed eigenspace by Gauss–Legendre quadrature of the resolvent <code>(zM − K)⁻¹M</code> over the contour. Diagonalise the projector to recover the enclosed eigenpairs.</p>
+<p><strong>Cost.</strong> Per <code>µ_j</code>: one linear solve at each quadrature node (≈ 8–16 nodes typical). For <em>affine</em> <code>K(µ)</code>, the per-node factorisations can be <strong>precomputed once across all <code>µ</code></strong> if the resolvent’s <code>µ</code>-dependence is handled symbolically. Otherwise per-<code>µ</code> cost is <code>O(N_quad · C_solve)</code>.</p>
+<p><strong>Where it shines.</strong></p>
+<ul>
+<li><strong>Window mode native</strong> — solves exactly the band-selection problem the adaptive-greedy’s Window mode tries to handle (whose window-entry / window-exit semantics remain ambiguous in the greedy).</li>
+<li>Embarrassingly parallel across both <code>µ</code> and quadrature nodes.</li>
+<li>No “first-k” cutoff issue; no truncation-gauge problem.</li>
+</ul>
+<p><strong>Where it breaks.</strong></p>
+<ul>
+<li>Number of eigenpairs in the window is not known in advance; FEAST needs a guess for the subspace dimension. Too small → missed eigenvalues; too large → wasted work.</li>
+<li>Conditioning of the contour quadrature depends on the gap between the contour and the nearest eigenvalues outside the window.</li>
+</ul>
+<p><strong>Head-to-head against greedy Window mode.</strong> Solve §3.3.2’s window problem (<code>[0, 270]</code> per the reference choice) by FEAST at each <code>µ</code> on a uniform grid, and compare against the greedy algorithm in Window mode. The experiment measures the trade-off between two qualitatively different cost axes: FEAST has no window-entry / window-exit ambiguity by construction but pays the full per-<code>µ</code> cost; the greedy reduces sample count but inherits that interpretive ambiguity at termination.</p>
+<hr>
+</section>
+</section>
+<section id="symbolic-characteristic-polynomial-methods-very-low-dim-only" class="level2">
+<h2 class="anchored" data-anchor-id="symbolic-characteristic-polynomial-methods-very-low-dim-only">7. Symbolic / characteristic-polynomial methods (very low-dim only)</h2>
+<p>For <em>very small</em> <code>n_dof</code> (say, <code>n_dof ≤ 20</code>), the characteristic polynomial <code>p(µ, λ) = det(K(µ) − λ M(µ))</code> can be computed symbolically in <code>µ</code> if <code>K(µ), M(µ)</code> are polynomial (or rational) in <code>µ</code>. The zero set of <code>p(µ, λ)</code> is an algebraic curve in <code>(µ, λ)</code>-space, and the branches are the connected components of that curve.</p>
+<p><strong>Cost.</strong> Symbolic determinant: <code>O(n³)</code> in symbolic operations, exponential in the polynomial degree of <code>K(µ), M(µ)</code>. Solving <code>p(µ_j, λ) = 0</code> at a fixed <code>µ_j</code> is a univariate root-finding in <code>λ</code>.</p>
+<p><strong>Status.</strong> Not practical at the reference problems’ <code>n_dof ≈ 10⁴</code>. Worth mentioning because it is the <em>mathematically exact</em> answer in the toy regime where it applies — useful as a sanity check on implementations at, e.g., <code>n_dof = 4</code>.</p>
+<p><strong>Head-to-head.</strong> A unit-test-scale verification, not a benchmark.</p>
+<hr>
+</section>
+<section id="comparison-axes-what-an-experiment-would-measure" class="level2">
+<h2 class="anchored" data-anchor-id="comparison-axes-what-an-experiment-would-measure">8. Comparison axes — what an experiment would measure</h2>
+<p>Any head-to-head experiment should report a fixed tuple, computed against the same dense reference (a uniform fine-mesh sweep, §2A):</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 17%">
+<col style="width: 35%">
+<col style="width: 47%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Axis</th>
+<th>Definition</th>
+<th>Why it matters</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><strong>Eigensolve count</strong></td>
+<td>Number of eigensolver calls</td>
+<td>The dominant cost at any realistic <code>n_dof</code>. Sample count × per-sample solve count.</td>
+</tr>
+<tr class="even">
+<td><strong>Wall time</strong></td>
+<td>Total compute time to reach a fixed accuracy <code>ε</code></td>
+<td>Captures secondary costs (matching, projection, assembly) that the eigensolve count ignores.</td>
+</tr>
+<tr class="odd">
+<td><strong><code>λ</code>-accuracy</strong></td>
+<td><code>max_µ max_n |λ_method(µ, n) − λ_truth(µ, n)|</code> after Hungarian-aligning branches</td>
+<td>The actual quantity the user cares about.</td>
+</tr>
+<tr class="even">
+<td><strong>Eigenvector accuracy</strong></td>
+<td><code>max_µ max_n</code> subspace angle between cluster-equivalent eigenspaces</td>
+<td>The quantity downstream physics computations care about.</td>
+</tr>
+<tr class="odd">
+<td><strong>Branch-identity error rate</strong></td>
+<td>Fraction of <code>(µ, n)</code> pairs where the method’s branch label disagrees with the dense reference’s</td>
+<td>Measures whether the method actually solves “track curves” or only “find eigenvalues.” Greedy Window mode answers this poorly — no curve identification exists behind its window-entry / window-exit labels.</td>
+</tr>
+<tr class="even">
+<td><strong>Crossing detection</strong></td>
+<td>True / false positives / negatives on crossings, vs.&nbsp;dense reference</td>
+<td>Specific to crossing-handling claims. The greedy’s refine-or-certify verdict is silent on crossings; window-entry / window-exit labels claim them but cannot certify them.</td>
+</tr>
+<tr class="odd">
+<td><strong>Robustness to tolerance perturbation</strong></td>
+<td>Same metrics under ±20% perturbation of all tolerances / step sizes</td>
+<td>The reference method’s tolerances are trial-and-error, with no principled selection rule; robustness is a first-class property, not an afterthought.</td>
+</tr>
+</tbody>
+</table>
+<p>Each experiment fixes a method, a target accuracy <code>ε</code>, and reports the seven-tuple. The reference method (greedy, §1) provides the baseline column; each other method provides one or more columns.</p>
+<hr>
+</section>
+<section id="candidate-experiments-worth-scoping" class="level2">
+<h2 class="anchored" data-anchor-id="candidate-experiments-worth-scoping">9. Candidate experiments worth scoping</h2>
+<p>Three experiments stand out as the most informative if the comparison framework is ever exercised end-to-end. None has been committed to; this list scopes the questions, not the build.</p>
+<ol type="1">
+<li><p><strong>Adaptivity ratio on §3.3.2.</strong> Greedy vs.&nbsp;uniform dense grid (§2A) on the reference 1D problem. Question: at the same <code>ε</code>, what is <code>N_nodes_uniform(ε) / N_nodes_greedy(ε)</code>? This is the headline number the reference leaves unreported, and the denominator every other comparison in this catalogue feeds into.</p></li>
+<li><p><strong>Greedy vs.&nbsp;predictor–corrector with branch switching (§4B).</strong> Same problem. Question: does locating crossings explicitly (test-function detection + branch switch) outperform locating them implicitly (bisection until certification fires)? This is the most direct comparison of the adaptive-greedy method’s contribution against the classical numerical-continuation playbook.</p></li>
+<li><p><strong>Greedy Window mode vs.&nbsp;FEAST per-<code>µ</code> on a uniform grid (§6A).</strong> Specifically on §3.3.2 with the reference <code>I_λ = [0, 270]</code>. Question: does the greedy’s sample-count advantage outweigh FEAST’s semantic-clarity advantage (no window-entry / window-exit ambiguity, no truncation gauge)?</p></li>
+</ol>
+<p>Experiment #1 is the most consequential — it answers whether the greedy is worth its complexity over a dense grid at all, and calibrates the denominator the other two are reported against.</p>
+<p>The continuation methods catalogued in §§3–4 are also the candidate attacks on the <strong>6D wall-time wall</strong> — after the snapshot store ceased to be the binding constraint, the §4.4.5 6D run is capped by the sheer number of full eigensolves, not by memory. That feasibility problem — is there a crossing-safe per-step continuation cheap enough to replace the cold-start eigensolve at each new parameter point and finish 6D in practical wall time? — is posed in a companion research note (not yet published) on open problems, which draws on this section’s cost / crossing-safety trade-offs.</p>
+<hr>
+</section>
+<section id="what-this-document-is-not" class="level2">
+<h2 class="anchored" data-anchor-id="what-this-document-is-not">10. What this document is not</h2>
+<p>Not a literature survey (each method gets one paragraph, not its canonical references), not a benchmark (no numbers — the point is to fix the axes before running anything), and not exhaustive (block iterative methods, trace-based spectral indicators, random-projection methods, and FE multigrid eigensolvers are explicitly omitted).</p>
+<hr>
+<p><em>Last updated: 2026-06-08.</em></p>
+
+
+<!-- -->
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+  const viewSource = window.document.getElementById('quarto-view-source') ||
+                     window.document.getElementById('quarto-code-tools-source');
+  if (viewSource) {
+    const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+    viewSource.addEventListener("click", function(e) {
+      if (sourceUrl) {
+        // rstudio viewer pane
+        if (/\bcapabilities=\b/.test(window.location)) {
+          window.open(sourceUrl);
+        } else {
+          window.location.href = sourceUrl;
+        }
+      } else {
+        const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+        modal.show();
+      }
+      return false;
+    });
+  }
+  function toggleCodeHandler(show) {
+    return function(e) {
+      const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+      for (let i=0; i<detailsSrc.length; i++) {
+        const details = detailsSrc[i].parentElement;
+        if (show) {
+          details.open = true;
+        } else {
+          details.removeAttribute("open");
+        }
+      }
+      const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+      const fromCls = show ? "hidden" : "unhidden";
+      const toCls = show ? "unhidden" : "hidden";
+      for (let i=0; i<cellCodeDivs.length; i++) {
+        const codeDiv = cellCodeDivs[i];
+        if (codeDiv.classList.contains(fromCls)) {
+          codeDiv.classList.remove(fromCls);
+          codeDiv.classList.add(toCls);
+        } 
+      }
+      return false;
+    }
+  }
+  const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+  if (hideAllCode) {
+    hideAllCode.addEventListener("click", toggleCodeHandler(false));
+  }
+  const showAllCode = window.document.getElementById("quarto-show-all-code");
+  if (showAllCode) {
+    showAllCode.addEventListener("click", toggleCodeHandler(true));
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="sourceCode" id="cb2" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Methods for the 1D Parametric Eigenvalue Problem: A Comparison Framework</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **What is on this page.** A catalogue of methods for solving the</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; parametric eigenvalue problem (pEVP) in one parameter dimension,</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; framed as a basis for later head-to-head numerical experiments</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; against the adaptive-greedy algorithm. The source work</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; (Alghamdi 2025) introduces the adaptive-greedy method but does</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **not** compare it against alternatives — this document fills that</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; gap so that future numerical experiments can pin "the greedy</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; algorithm is X% faster / more accurate than method Y under</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; conditions Z" as measurable claims rather than assumptions.</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; Companion pages on this site document the rebuild's own measured</span></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; properties; the open methodological questions are collected in a</span></span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; companion research note (not yet published).</span></span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a><span class="at">&gt;</span></span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **Scope.** 1D only (one parameter dimension, </span><span class="in">`d = 1`</span><span class="at">).</span></span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; Symmetric-definite generalised</span></span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; eigenvalue problem: </span><span class="in">`K(µ) u = λ M(µ) u`</span><span class="at"> with </span><span class="in">`K(µ), M(µ) ∈ ℝ^{n×n}`</span></span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; sparse, symmetric, </span><span class="in">`M(µ)`</span><span class="at"> positive definite, </span><span class="in">`µ ∈ [µ_lo, µ_hi] ⊂ ℝ`</span><span class="at">.</span></span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; Affine-in-coefficient assembly is the reference problems' regime; some</span></span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; methods exploit that structure, others don't.</span></span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a><span class="fu">## 1. The reference method: adaptive-greedy</span></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a>This is the baseline every other method is compared *against*. It is</span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>**not the first thing tried** in the literature — it is a recent</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>contribution (Alghamdi 2025) — but in this document it plays the role</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>of the reference because that is the codebase the comparisons feed</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>back into.</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>**Idea.** Sample <span class="in">`µ`</span> adaptively on a sparse grid. At each edge of the</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a>grid, perform a posteriori certification: a matched eigenpair is</span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>certified if its eigenvector overlap with the partner at the other</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a>endpoint is essentially diagonal (off-diagonal projection mass below</span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a><span class="in">`t_π`</span>, eigenvalue separation above <span class="in">`t_λ`</span>). Edges that fail</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a>certification are bisected; the loop runs until no edge is flagged or</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>a maximum refinement level is reached.</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>**Cost model.** Let <span class="in">`C_eig`</span> be the cost of one cold eigensolve at the</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a>working <span class="in">`n_dof`</span>. The greedy loop performs one eigensolve per node,</span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>one cost-matrix + Hungarian assignment + a posteriori matrix</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>construction per edge. Eigensolves dominate; assignment and</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>projection are O(<span class="in">`k³`</span>) and O(<span class="in">`k² · n_dof`</span>) respectively, both</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>negligible for <span class="in">`n_dof ≫ k`</span>.</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>Let <span class="in">`N_nodes(L)`</span> be the number of nodes after <span class="in">`L`</span> refinement levels.</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>Total cost ≈ <span class="in">`N_nodes(L) · C_eig`</span> plus a small linear-algebra</span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a>overhead per edge.</span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a>**Where it shines.**</span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Crossings can be located with grid spacing only as fine as needed</span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a>  for the verifier to certify around them.</span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Smooth regions get sparse sampling automatically — no manual grid</span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a>  design.</span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The basis built along the way (the snapshot store) is reusable for</span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a>  post-hoc ROM evaluation.</span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a>**Where it breaks / what to watch for.**</span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The termination criterion is structural, not error-bounded: the</span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>  loop stops when no edge is flagged, but no a-priori bound ties that</span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>  fixed point to a target accuracy <span class="in">`|λ_h − λ| ≤ ε`</span>. What termination</span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a>  actually certifies is examined in a companion research note (not</span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a>  yet published) on open methodological questions.</span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Window mode's window-entry / window-exit labels are a rebuild-only</span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a>  interpretation layer, not a measurement — no curve identification</span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>  exists behind them. With the maximum refinement level raised above</span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a>  its default, this can drive the loop to the cap on boundary</span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a>  geometry rather than on basis failure.</span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Tolerances <span class="in">`(t_π, t_λ)`</span> are chosen by trial and error, with no</span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a>  principled selection rule; a 20% perturbation can flip termination</span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a>  level and degrade ROM accuracy by an order of magnitude — see the</span>
+<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a>  <span class="co">[</span><span class="ot">tolerance-perturbation page</span><span class="co">](examples/tolerance-perturbation.qmd)</span>.</span>
+<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Reproducing the reference §3.3.3 Table 2D Error per-level counts</span>
+<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a>  failed across the full set of tunable knobs available to the</span>
+<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a>  rebuild (verdict mode, pruning rule, eigenvector cluster rewrite,</span>
+<span id="cb2-80"><a href="#cb2-80" aria-hidden="true" tabindex="-1"></a>  cluster exemption, refinement topology). The published table</span>
+<span id="cb2-81"><a href="#cb2-81" aria-hidden="true" tabindex="-1"></a>  appears to come from a driver not in the source dump; the</span>
+<span id="cb2-82"><a href="#cb2-82" aria-hidden="true" tabindex="-1"></a>  reproduction gap is documented in a companion research note (not</span>
+<span id="cb2-83"><a href="#cb2-83" aria-hidden="true" tabindex="-1"></a>  yet published).</span>
+<span id="cb2-84"><a href="#cb2-84" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-85"><a href="#cb2-85" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-86"><a href="#cb2-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-87"><a href="#cb2-87" aria-hidden="true" tabindex="-1"></a><span class="fu">## 2. Reference baselines</span></span>
+<span id="cb2-88"><a href="#cb2-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-89"><a href="#cb2-89" aria-hidden="true" tabindex="-1"></a>These are not comparison "methods" in the same sense as §3–§7. They</span>
+<span id="cb2-90"><a href="#cb2-90" aria-hidden="true" tabindex="-1"></a>are what greedy is *measured against*: the cost denominator (§2A) and</span>
+<span id="cb2-91"><a href="#cb2-91" aria-hidden="true" tabindex="-1"></a>the branch-identity oracle (§2B). They are the honest framing of</span>
+<span id="cb2-92"><a href="#cb2-92" aria-hidden="true" tabindex="-1"></a>"how cheap can we be without being clever" (§2A) and "what would a</span>
+<span id="cb2-93"><a href="#cb2-93" aria-hidden="true" tabindex="-1"></a>ground-truth tracker cost" (§2B).</span>
+<span id="cb2-94"><a href="#cb2-94" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-95"><a href="#cb2-95" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2A. Uniform dense grid + cold eigensolve per node</span></span>
+<span id="cb2-96"><a href="#cb2-96" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-97"><a href="#cb2-97" aria-hidden="true" tabindex="-1"></a>**Idea.** Sample <span class="in">`µ_j = µ_lo + j · h`</span> for <span class="in">`j = 0..N`</span>. At each <span class="in">`µ_j`</span></span>
+<span id="cb2-98"><a href="#cb2-98" aria-hidden="true" tabindex="-1"></a>solve <span class="in">`K(µ_j) v = λ M(µ_j) v`</span> from scratch.</span>
+<span id="cb2-99"><a href="#cb2-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-100"><a href="#cb2-100" aria-hidden="true" tabindex="-1"></a>**Cost.** <span class="in">`N · C_eig`</span> exactly. No reuse.</span>
+<span id="cb2-101"><a href="#cb2-101" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-102"><a href="#cb2-102" aria-hidden="true" tabindex="-1"></a>**Where it shines.**</span>
+<span id="cb2-103"><a href="#cb2-103" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-104"><a href="#cb2-104" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Trivial to implement and debug — this is the rebuild's dense</span>
+<span id="cb2-105"><a href="#cb2-105" aria-hidden="true" tabindex="-1"></a>  reference sweep used to generate truth data for accuracy</span>
+<span id="cb2-106"><a href="#cb2-106" aria-hidden="true" tabindex="-1"></a>  measurements.</span>
+<span id="cb2-107"><a href="#cb2-107" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Embarrassingly parallel across <span class="in">`µ`</span>.</span>
+<span id="cb2-108"><a href="#cb2-108" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Error from grid spacing is bounded by smoothness of <span class="in">`λ_n(µ)`</span> and</span>
+<span id="cb2-109"><a href="#cb2-109" aria-hidden="true" tabindex="-1"></a>  obvious to control: halve <span class="in">`h`</span>, error roughly halves between</span>
+<span id="cb2-110"><a href="#cb2-110" aria-hidden="true" tabindex="-1"></a>  crossings.</span>
+<span id="cb2-111"><a href="#cb2-111" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>No tolerance trial-and-error; no termination ambiguity.</span>
+<span id="cb2-112"><a href="#cb2-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-113"><a href="#cb2-113" aria-hidden="true" tabindex="-1"></a>**Where it breaks.**</span>
+<span id="cb2-114"><a href="#cb2-114" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-115"><a href="#cb2-115" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Sample count is fixed in advance — wasteful in smooth regions,</span>
+<span id="cb2-116"><a href="#cb2-116" aria-hidden="true" tabindex="-1"></a>  potentially under-resolved near crossings.</span>
+<span id="cb2-117"><a href="#cb2-117" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Branch tracking is post-hoc (see 2B); the raw eigensolve output is</span>
+<span id="cb2-118"><a href="#cb2-118" aria-hidden="true" tabindex="-1"></a>  sorted-ascending and does not respect curve identity.</span>
+<span id="cb2-119"><a href="#cb2-119" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>No reusable basis emerges; downstream ROM evaluation requires a</span>
+<span id="cb2-120"><a href="#cb2-120" aria-hidden="true" tabindex="-1"></a>  separate construction.</span>
+<span id="cb2-121"><a href="#cb2-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-122"><a href="#cb2-122" aria-hidden="true" tabindex="-1"></a>**Role in comparison.** §2A is the *cost denominator* for every</span>
+<span id="cb2-123"><a href="#cb2-123" aria-hidden="true" tabindex="-1"></a>method below — not a competitor of the greedy algorithm. Pick a</span>
+<span id="cb2-124"><a href="#cb2-124" aria-hidden="true" tabindex="-1"></a>target accuracy <span class="in">`ε`</span>. Find the coarsest uniform grid such that</span>
+<span id="cb2-125"><a href="#cb2-125" aria-hidden="true" tabindex="-1"></a><span class="in">`max_µ |λ_uniform(µ) − λ_dense(µ)| &lt; ε`</span>. The adaptivity ratio</span>
+<span id="cb2-126"><a href="#cb2-126" aria-hidden="true" tabindex="-1"></a><span class="in">`N_nodes_uniform(ε) / N_nodes_greedy(ε)`</span> on §3.3.2 is a number the</span>
+<span id="cb2-127"><a href="#cb2-127" aria-hidden="true" tabindex="-1"></a>reference leaves unreported, and the headline figure any greedy-vs-</span>
+<span id="cb2-128"><a href="#cb2-128" aria-hidden="true" tabindex="-1"></a>alternative experiment depends on. The question is *what the ratio</span>
+<span id="cb2-129"><a href="#cb2-129" aria-hidden="true" tabindex="-1"></a>is*, not which side wins.</span>
+<span id="cb2-130"><a href="#cb2-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-131"><a href="#cb2-131" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2B. Dense grid + Hungarian branch tracking</span></span>
+<span id="cb2-132"><a href="#cb2-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-133"><a href="#cb2-133" aria-hidden="true" tabindex="-1"></a>**Idea.** As 2A, plus: between every adjacent pair <span class="in">`(µ_j, µ_{j+1})`</span>,</span>
+<span id="cb2-134"><a href="#cb2-134" aria-hidden="true" tabindex="-1"></a>run cost-matrix + Hungarian assignment on eigenvector overlaps to tag</span>
+<span id="cb2-135"><a href="#cb2-135" aria-hidden="true" tabindex="-1"></a>each eigenpair with a continuous branch label. This is the rebuild's</span>
+<span id="cb2-136"><a href="#cb2-136" aria-hidden="true" tabindex="-1"></a>branch-tracking pass used to assemble tracked-spectrum figures.</span>
+<span id="cb2-137"><a href="#cb2-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-138"><a href="#cb2-138" aria-hidden="true" tabindex="-1"></a>**Cost.** 2A plus <span class="in">`O((N − 1) · k²)`</span> matching work — dominated by</span>
+<span id="cb2-139"><a href="#cb2-139" aria-hidden="true" tabindex="-1"></a>2A's eigensolves at any realistic problem size.</span>
+<span id="cb2-140"><a href="#cb2-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-141"><a href="#cb2-141" aria-hidden="true" tabindex="-1"></a>**Where it shines.** Solves the curve-identity problem that the</span>
+<span id="cb2-142"><a href="#cb2-142" aria-hidden="true" tabindex="-1"></a>greedy algorithm's Window mode cannot resolve. Output is</span>
+<span id="cb2-143"><a href="#cb2-143" aria-hidden="true" tabindex="-1"></a>"<span class="in">`λ_n(µ_j)`</span> for branch <span class="in">`n = 1..k`</span>, <span class="in">`j = 0..N`</span>" — a fully tracked</span>
+<span id="cb2-144"><a href="#cb2-144" aria-hidden="true" tabindex="-1"></a>spectrum.</span>
+<span id="cb2-145"><a href="#cb2-145" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-146"><a href="#cb2-146" aria-hidden="true" tabindex="-1"></a>**Where it breaks.** Cost is the cost of 2A; no reuse of parametric</span>
+<span id="cb2-147"><a href="#cb2-147" aria-hidden="true" tabindex="-1"></a>structure. Hungarian matching itself fails the same way Window-mode</span>
+<span id="cb2-148"><a href="#cb2-148" aria-hidden="true" tabindex="-1"></a>matching does when adjacent-sample eigenvectors collapse near a</span>
+<span id="cb2-149"><a href="#cb2-149" aria-hidden="true" tabindex="-1"></a>crossing — the symptom is gauge-dependent branch label swaps.</span>
+<span id="cb2-150"><a href="#cb2-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-151"><a href="#cb2-151" aria-hidden="true" tabindex="-1"></a>**Role in comparison.** §2B is the *branch-identity oracle*: the</span>
+<span id="cb2-152"><a href="#cb2-152" aria-hidden="true" tabindex="-1"></a>"expensive correct" baseline for branch tracking that the greedy is</span>
+<span id="cb2-153"><a href="#cb2-153" aria-hidden="true" tabindex="-1"></a>trying to be a cheaper version of. Useful both as ground-truth for</span>
+<span id="cb2-154"><a href="#cb2-154" aria-hidden="true" tabindex="-1"></a>any branch-identity metric and as a cost upper bound that any pEVP</span>
+<span id="cb2-155"><a href="#cb2-155" aria-hidden="true" tabindex="-1"></a>method should beat.</span>
+<span id="cb2-156"><a href="#cb2-156" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-157"><a href="#cb2-157" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-158"><a href="#cb2-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-159"><a href="#cb2-159" aria-hidden="true" tabindex="-1"></a><span class="fu">## 3. Solver-level continuation (per-eigensolve reuse)</span></span>
+<span id="cb2-160"><a href="#cb2-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-161"><a href="#cb2-161" aria-hidden="true" tabindex="-1"></a>These methods accelerate the *individual* eigensolve at each <span class="in">`µ_j`</span></span>
+<span id="cb2-162"><a href="#cb2-162" aria-hidden="true" tabindex="-1"></a>by reusing work from the previous one. Sample count stays the same</span>
+<span id="cb2-163"><a href="#cb2-163" aria-hidden="true" tabindex="-1"></a>as 2A; per-sample cost goes down.</span>
+<span id="cb2-164"><a href="#cb2-164" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-165"><a href="#cb2-165" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3A. Warm-started LOBPCG along a `µ`-path</span></span>
+<span id="cb2-166"><a href="#cb2-166" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-167"><a href="#cb2-167" aria-hidden="true" tabindex="-1"></a>**Idea.** Use the eigenvectors at <span class="in">`µ_{j-1}`</span> as the initial block for</span>
+<span id="cb2-168"><a href="#cb2-168" aria-hidden="true" tabindex="-1"></a>LOBPCG at <span class="in">`µ_j`</span>. Optionally with Jacobi or AMG preconditioning.</span>
+<span id="cb2-169"><a href="#cb2-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-170"><a href="#cb2-170" aria-hidden="true" tabindex="-1"></a>**Cost.** Per-iteration ≈ a few matvecs; total per <span class="in">`µ_j`</span> is</span>
+<span id="cb2-171"><a href="#cb2-171" aria-hidden="true" tabindex="-1"></a><span class="in">`O(k · n_dof)`</span> in matvecs plus <span class="in">`O(k³)`</span> Rayleigh–Ritz, with iteration</span>
+<span id="cb2-172"><a href="#cb2-172" aria-hidden="true" tabindex="-1"></a>count dropping sharply as the warm start improves.</span>
+<span id="cb2-173"><a href="#cb2-173" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-174"><a href="#cb2-174" aria-hidden="true" tabindex="-1"></a>**Where it shines.** Smooth regions where consecutive eigenpairs are</span>
+<span id="cb2-175"><a href="#cb2-175" aria-hidden="true" tabindex="-1"></a>close — convergence in 2-5 iterations.</span>
+<span id="cb2-176"><a href="#cb2-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-177"><a href="#cb2-177" aria-hidden="true" tabindex="-1"></a>**Where it breaks.**</span>
+<span id="cb2-178"><a href="#cb2-178" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-179"><a href="#cb2-179" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>In the rebuild's measurements at <span class="in">`n_dof ≤ 10⁴`</span> (the reference</span>
+<span id="cb2-180"><a href="#cb2-180" aria-hidden="true" tabindex="-1"></a>  problems' regime), warm-started LOBPCG with Jacobi preconditioning is</span>
+<span id="cb2-181"><a href="#cb2-181" aria-hidden="true" tabindex="-1"></a>  **5–10× slower** than ARPACK shift-invert. The crossover would</span>
+<span id="cb2-182"><a href="#cb2-182" aria-hidden="true" tabindex="-1"></a>  require either much larger <span class="in">`n_dof`</span> or AMG-class preconditioning.</span>
+<span id="cb2-183"><a href="#cb2-183" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Block reorganization at crossings is awkward — the</span>
+<span id="cb2-184"><a href="#cb2-184" aria-hidden="true" tabindex="-1"></a>  closest-eigenvalue continuation isn't always the right pairing.</span>
+<span id="cb2-185"><a href="#cb2-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-186"><a href="#cb2-186" aria-hidden="true" tabindex="-1"></a>**Head-to-head against the greedy.** The experiment runs 2A with</span>
+<span id="cb2-187"><a href="#cb2-187" aria-hidden="true" tabindex="-1"></a>warm-started LOBPCG at each node and compares total wall time and</span>
+<span id="cb2-188"><a href="#cb2-188" aria-hidden="true" tabindex="-1"></a>accuracy against greedy's <span class="in">`N_nodes · C_eig`</span>. It measures whether</span>
+<span id="cb2-189"><a href="#cb2-189" aria-hidden="true" tabindex="-1"></a>solver-level reuse alone can close the sample-count gap that</span>
+<span id="cb2-190"><a href="#cb2-190" aria-hidden="true" tabindex="-1"></a>adaptive sampling exploits. Caveat: needs an <span class="in">`n_dof`</span> large enough</span>
+<span id="cb2-191"><a href="#cb2-191" aria-hidden="true" tabindex="-1"></a>that LOBPCG is competitive in the first place — the reference</span>
+<span id="cb2-192"><a href="#cb2-192" aria-hidden="true" tabindex="-1"></a>problems' regime isn't.</span>
+<span id="cb2-193"><a href="#cb2-193" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-194"><a href="#cb2-194" aria-hidden="true" tabindex="-1"></a><span class="fu">### 3B. Krylov–Schur with subspace recycling</span></span>
+<span id="cb2-195"><a href="#cb2-195" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-196"><a href="#cb2-196" aria-hidden="true" tabindex="-1"></a>**Idea.** Same family as 3A; SLEPc-style implementation. Reuse the</span>
+<span id="cb2-197"><a href="#cb2-197" aria-hidden="true" tabindex="-1"></a>prior step's Krylov subspace as the starting basis.</span>
+<span id="cb2-198"><a href="#cb2-198" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-199"><a href="#cb2-199" aria-hidden="true" tabindex="-1"></a>**Cost.** Comparable to 3A; the trade-off between block size and</span>
+<span id="cb2-200"><a href="#cb2-200" aria-hidden="true" tabindex="-1"></a>restart depth tunes differently.</span>
+<span id="cb2-201"><a href="#cb2-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-202"><a href="#cb2-202" aria-hidden="true" tabindex="-1"></a>**Status.** Not implemented in the rebuild. Worth measuring once</span>
+<span id="cb2-203"><a href="#cb2-203" aria-hidden="true" tabindex="-1"></a>AMG-class preconditioning is integrated; until then ARPACK cold-start</span>
+<span id="cb2-204"><a href="#cb2-204" aria-hidden="true" tabindex="-1"></a>is the default for principled reasons.</span>
+<span id="cb2-205"><a href="#cb2-205" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-206"><a href="#cb2-206" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-207"><a href="#cb2-207" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-208"><a href="#cb2-208" aria-hidden="true" tabindex="-1"></a><span class="fu">## 4. Smooth-regime perturbation / ODE continuation</span></span>
+<span id="cb2-209"><a href="#cb2-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-210"><a href="#cb2-210" aria-hidden="true" tabindex="-1"></a>These methods don't sample the parameter at all in smooth regions —</span>
+<span id="cb2-211"><a href="#cb2-211" aria-hidden="true" tabindex="-1"></a>they integrate the eigenpair forward in <span class="in">`µ`</span> using analytic</span>
+<span id="cb2-212"><a href="#cb2-212" aria-hidden="true" tabindex="-1"></a>derivatives.</span>
+<span id="cb2-213"><a href="#cb2-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-214"><a href="#cb2-214" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4A. Analytic eigenvalue derivative (Rellich / Hellmann–Feynman)</span></span>
+<span id="cb2-215"><a href="#cb2-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-216"><a href="#cb2-216" aria-hidden="true" tabindex="-1"></a>**Idea.** For a simple eigenpair <span class="in">`(λ(µ), v(µ))`</span> of a symmetric</span>
+<span id="cb2-217"><a href="#cb2-217" aria-hidden="true" tabindex="-1"></a>problem:</span>
+<span id="cb2-218"><a href="#cb2-218" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-219"><a href="#cb2-219" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb2-220"><a href="#cb2-220" aria-hidden="true" tabindex="-1"></a><span class="in">dλ/dµ = vᵀ (∂K/∂µ − λ ∂M/∂µ) v / (vᵀ M v)</span></span>
+<span id="cb2-221"><a href="#cb2-221" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb2-222"><a href="#cb2-222" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-223"><a href="#cb2-223" aria-hidden="true" tabindex="-1"></a>The eigenvector derivative satisfies a singular linear system that</span>
+<span id="cb2-224"><a href="#cb2-224" aria-hidden="true" tabindex="-1"></a>can be solved by either spectral projection or by augmenting with</span>
+<span id="cb2-225"><a href="#cb2-225" aria-hidden="true" tabindex="-1"></a>the normalisation constraint. For *affine-in-µ* problems (the</span>
+<span id="cb2-226"><a href="#cb2-226" aria-hidden="true" tabindex="-1"></a>reference problems' regime), <span class="in">`∂K/∂µ`</span> and <span class="in">`∂M/∂µ`</span> are constant — assembled</span>
+<span id="cb2-227"><a href="#cb2-227" aria-hidden="true" tabindex="-1"></a>once.</span>
+<span id="cb2-228"><a href="#cb2-228" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-229"><a href="#cb2-229" aria-hidden="true" tabindex="-1"></a>**Cost per step.** One Taylor (or Padé) extrapolation; no eigensolve</span>
+<span id="cb2-230"><a href="#cb2-230" aria-hidden="true" tabindex="-1"></a>required. Per-step cost is one matvec for the derivative formula</span>
+<span id="cb2-231"><a href="#cb2-231" aria-hidden="true" tabindex="-1"></a>plus the linear solve for <span class="in">`v'`</span>. **Order of magnitude cheaper than a</span>
+<span id="cb2-232"><a href="#cb2-232" aria-hidden="true" tabindex="-1"></a>full eigensolve.**</span>
+<span id="cb2-233"><a href="#cb2-233" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-234"><a href="#cb2-234" aria-hidden="true" tabindex="-1"></a>**Where it shines.** Smooth, well-separated branches. The</span>
+<span id="cb2-235"><a href="#cb2-235" aria-hidden="true" tabindex="-1"></a>predictor's accuracy is <span class="in">`O(h^p)`</span> for a <span class="in">`p`</span>-th-order Taylor step;</span>
+<span id="cb2-236"><a href="#cb2-236" aria-hidden="true" tabindex="-1"></a>stepping all the way across <span class="in">`[µ_lo, µ_hi]`</span> from one cold solve at</span>
+<span id="cb2-237"><a href="#cb2-237" aria-hidden="true" tabindex="-1"></a><span class="in">`µ_lo`</span> is feasible when no crossings occur.</span>
+<span id="cb2-238"><a href="#cb2-238" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-239"><a href="#cb2-239" aria-hidden="true" tabindex="-1"></a>**Where it breaks.**</span>
+<span id="cb2-240"><a href="#cb2-240" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-241"><a href="#cb2-241" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Essential singularity at every crossing.** <span class="in">`dλ_i/dµ`</span> blows up</span>
+<span id="cb2-242"><a href="#cb2-242" aria-hidden="true" tabindex="-1"></a>  as <span class="in">`λ_i → λ_j`</span> because the eigenvector derivative requires</span>
+<span id="cb2-243"><a href="#cb2-243" aria-hidden="true" tabindex="-1"></a>  <span class="in">`(K − λ M)`</span> to be invertible on the orthogonal complement of <span class="in">`v`</span>,</span>
+<span id="cb2-244"><a href="#cb2-244" aria-hidden="true" tabindex="-1"></a>  and that fails at crossings. Two distinct branches need to</span>
+<span id="cb2-245"><a href="#cb2-245" aria-hidden="true" tabindex="-1"></a>  *exchange* eigenvectors smoothly, which the formula above does</span>
+<span id="cb2-246"><a href="#cb2-246" aria-hidden="true" tabindex="-1"></a>  not describe.</span>
+<span id="cb2-247"><a href="#cb2-247" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Branch identity is fragile: which eigenpair <span class="in">`(λ_i, v_i)`</span> the</span>
+<span id="cb2-248"><a href="#cb2-248" aria-hidden="true" tabindex="-1"></a>  integrator "is on" is determined by the initial pick; near an</span>
+<span id="cb2-249"><a href="#cb2-249" aria-hidden="true" tabindex="-1"></a>  avoided crossing the integrator may follow the wrong branch.</span>
+<span id="cb2-250"><a href="#cb2-250" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Requires a *corrector* (Newton or a full eigensolve) periodically</span>
+<span id="cb2-251"><a href="#cb2-251" aria-hidden="true" tabindex="-1"></a>  to prevent drift — pure predictor accumulates error.</span>
+<span id="cb2-252"><a href="#cb2-252" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-253"><a href="#cb2-253" aria-hidden="true" tabindex="-1"></a>**Head-to-head against the greedy.** Measures the cost-per-unit-µ of</span>
+<span id="cb2-254"><a href="#cb2-254" aria-hidden="true" tabindex="-1"></a>analytic continuation in the smooth-only regime, and how far the</span>
+<span id="cb2-255"><a href="#cb2-255" aria-hidden="true" tabindex="-1"></a>method degrades when crossings are present. The experiment</span>
+<span id="cb2-256"><a href="#cb2-256" aria-hidden="true" tabindex="-1"></a>benchmarks 4A on a problem with no crossings (or with crossings</span>
+<span id="cb2-257"><a href="#cb2-257" aria-hidden="true" tabindex="-1"></a>manually excised) and on the §3.3.2 problem with crossings; the</span>
+<span id="cb2-258"><a href="#cb2-258" aria-hidden="true" tabindex="-1"></a>crossing case answers whether a pure predictor without branch</span>
+<span id="cb2-259"><a href="#cb2-259" aria-hidden="true" tabindex="-1"></a>switching is salvageable at all.</span>
+<span id="cb2-260"><a href="#cb2-260" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-261"><a href="#cb2-261" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4B. Predictor–corrector continuation (arc-length)</span></span>
+<span id="cb2-262"><a href="#cb2-262" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-263"><a href="#cb2-263" aria-hidden="true" tabindex="-1"></a>**Idea.** 4A as predictor; full eigensolve at fixed <span class="in">`µ`</span> (or</span>
+<span id="cb2-264"><a href="#cb2-264" aria-hidden="true" tabindex="-1"></a>arc-length-parameterised step) as corrector. Branch switching at</span>
+<span id="cb2-265"><a href="#cb2-265" aria-hidden="true" tabindex="-1"></a>detected crossings via a *test function* (e.g., sign change of an</span>
+<span id="cb2-266"><a href="#cb2-266" aria-hidden="true" tabindex="-1"></a>eigenvalue gap).</span>
+<span id="cb2-267"><a href="#cb2-267" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-268"><a href="#cb2-268" aria-hidden="true" tabindex="-1"></a>**Cost.** Per accepted step: one predictor (cheap) + one corrector</span>
+<span id="cb2-269"><a href="#cb2-269" aria-hidden="true" tabindex="-1"></a>(expensive but possibly warm-started). Step length adapts to local</span>
+<span id="cb2-270"><a href="#cb2-270" aria-hidden="true" tabindex="-1"></a>curvature of <span class="in">`λ(µ)`</span>.</span>
+<span id="cb2-271"><a href="#cb2-271" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-272"><a href="#cb2-272" aria-hidden="true" tabindex="-1"></a>**Where it shines.** Smooth-regime efficiency of 4A combined with</span>
+<span id="cb2-273"><a href="#cb2-273" aria-hidden="true" tabindex="-1"></a>recovery at crossings. This is the classical numerical continuation</span>
+<span id="cb2-274"><a href="#cb2-274" aria-hidden="true" tabindex="-1"></a>playbook (Keller, Allgower–Georg).</span>
+<span id="cb2-275"><a href="#cb2-275" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-276"><a href="#cb2-276" aria-hidden="true" tabindex="-1"></a>**Where it breaks.**</span>
+<span id="cb2-277"><a href="#cb2-277" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-278"><a href="#cb2-278" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Branch switching at crossings is delicate. The greedy algorithm's</span>
+<span id="cb2-279"><a href="#cb2-279" aria-hidden="true" tabindex="-1"></a>  Hungarian matching is, in effect, a discrete branch-switching</span>
+<span id="cb2-280"><a href="#cb2-280" aria-hidden="true" tabindex="-1"></a>  rule applied at every sampled edge. 4B has to do the same thing</span>
+<span id="cb2-281"><a href="#cb2-281" aria-hidden="true" tabindex="-1"></a>  but with finer control over *when* to apply it (only at detected</span>
+<span id="cb2-282"><a href="#cb2-282" aria-hidden="true" tabindex="-1"></a>  crossings, not at every step).</span>
+<span id="cb2-283"><a href="#cb2-283" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Corrector cost dominates when crossings are dense.</span>
+<span id="cb2-284"><a href="#cb2-284" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-285"><a href="#cb2-285" aria-hidden="true" tabindex="-1"></a>**Head-to-head against the greedy.** Measures where each method</span>
+<span id="cb2-286"><a href="#cb2-286" aria-hidden="true" tabindex="-1"></a>spends its eigensolves: 4B does eigensolves at detected crossings;</span>
+<span id="cb2-287"><a href="#cb2-287" aria-hidden="true" tabindex="-1"></a>the greedy does eigensolves at every bisection level around</span>
+<span id="cb2-288"><a href="#cb2-288" aria-hidden="true" tabindex="-1"></a>crossings, including levels that fire on window-entry / window-exit</span>
+<span id="cb2-289"><a href="#cb2-289" aria-hidden="true" tabindex="-1"></a>interpretation rather than on basis failure. The metric is</span>
+<span id="cb2-290"><a href="#cb2-290" aria-hidden="true" tabindex="-1"></a>eigensolve count to a fixed <span class="in">`ε`</span> accuracy on §3.3.2.</span>
+<span id="cb2-291"><a href="#cb2-291" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-292"><a href="#cb2-292" aria-hidden="true" tabindex="-1"></a><span class="fu">### 4C. Subspace continuation on the Grassmannian</span></span>
+<span id="cb2-293"><a href="#cb2-293" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-294"><a href="#cb2-294" aria-hidden="true" tabindex="-1"></a>**Idea.** Instead of tracking individual eigenpairs, track the</span>
+<span id="cb2-295"><a href="#cb2-295" aria-hidden="true" tabindex="-1"></a>*invariant subspace* spanned by the lowest <span class="in">`k`</span> eigenvectors. The</span>
+<span id="cb2-296"><a href="#cb2-296" aria-hidden="true" tabindex="-1"></a>subspace is robust through crossings — only the basis of the</span>
+<span id="cb2-297"><a href="#cb2-297" aria-hidden="true" tabindex="-1"></a>subspace rotates. Methods: Mehrmann–Schwetlick, Davis–Kahan</span>
+<span id="cb2-298"><a href="#cb2-298" aria-hidden="true" tabindex="-1"></a>perturbation bounds.</span>
+<span id="cb2-299"><a href="#cb2-299" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-300"><a href="#cb2-300" aria-hidden="true" tabindex="-1"></a>**Cost.** A <span class="in">`k`</span>-dimensional subspace ODE integrated in <span class="in">`µ`</span>; periodic</span>
+<span id="cb2-301"><a href="#cb2-301" aria-hidden="true" tabindex="-1"></a>projection back onto the eigenproblem manifold via Rayleigh–Ritz.</span>
+<span id="cb2-302"><a href="#cb2-302" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-303"><a href="#cb2-303" aria-hidden="true" tabindex="-1"></a>**Where it shines.** Robust through crossings — the bottleneck of</span>
+<span id="cb2-304"><a href="#cb2-304" aria-hidden="true" tabindex="-1"></a>4A and 4B. The price is that individual branches are not tracked</span>
+<span id="cb2-305"><a href="#cb2-305" aria-hidden="true" tabindex="-1"></a>during the continuation; they are recovered post-hoc by</span>
+<span id="cb2-306"><a href="#cb2-306" aria-hidden="true" tabindex="-1"></a>diagonalising the projected matrix.</span>
+<span id="cb2-307"><a href="#cb2-307" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-308"><a href="#cb2-308" aria-hidden="true" tabindex="-1"></a>**Where it breaks.** Mathematically clean, computationally</span>
+<span id="cb2-309"><a href="#cb2-309" aria-hidden="true" tabindex="-1"></a>non-trivial; not a "turn the crank" method. The literature is</span>
+<span id="cb2-310"><a href="#cb2-310" aria-hidden="true" tabindex="-1"></a>specialised and the off-the-shelf software is thin.</span>
+<span id="cb2-311"><a href="#cb2-311" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-312"><a href="#cb2-312" aria-hidden="true" tabindex="-1"></a>**Head-to-head.** The most interesting comparison for the</span>
+<span id="cb2-313"><a href="#cb2-313" aria-hidden="true" tabindex="-1"></a>crossing-heavy regime the adaptive-greedy method targets. Worth a</span>
+<span id="cb2-314"><a href="#cb2-314" aria-hidden="true" tabindex="-1"></a>literature survey before any numerical experiment.</span>
+<span id="cb2-315"><a href="#cb2-315" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-316"><a href="#cb2-316" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-317"><a href="#cb2-317" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-318"><a href="#cb2-318" aria-hidden="true" tabindex="-1"></a><span class="fu">## 5. Surrogate / reduced-basis methods (offline–online split)</span></span>
+<span id="cb2-319"><a href="#cb2-319" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-320"><a href="#cb2-320" aria-hidden="true" tabindex="-1"></a>These methods build a global surrogate from a training set of</span>
+<span id="cb2-321"><a href="#cb2-321" aria-hidden="true" tabindex="-1"></a>snapshots, then evaluate cheaply at any query <span class="in">`µ`</span>.</span>
+<span id="cb2-322"><a href="#cb2-322" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-323"><a href="#cb2-323" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5A. Polynomial / Chebyshev interpolation of `K(µ)`, `M(µ)`</span></span>
+<span id="cb2-324"><a href="#cb2-324" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-325"><a href="#cb2-325" aria-hidden="true" tabindex="-1"></a>**Idea.** Sample <span class="in">`K(µ_j)`</span>, <span class="in">`M(µ_j)`</span> at Chebyshev nodes; interpolate</span>
+<span id="cb2-326"><a href="#cb2-326" aria-hidden="true" tabindex="-1"></a>component-wise. The resulting <span class="in">`K̃(µ)`</span>, <span class="in">`M̃(µ)`</span> are polynomial in <span class="in">`µ`</span>.</span>
+<span id="cb2-327"><a href="#cb2-327" aria-hidden="true" tabindex="-1"></a>The reduced problem <span class="in">`K̃(µ) u = λ M̃(µ) u`</span> is a polynomial eigenvalue</span>
+<span id="cb2-328"><a href="#cb2-328" aria-hidden="true" tabindex="-1"></a>problem (PEP) — solvable once globally via companion linearisation.</span>
+<span id="cb2-329"><a href="#cb2-329" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-330"><a href="#cb2-330" aria-hidden="true" tabindex="-1"></a>**Cost.** <span class="in">`N_cheb`</span> assemblies offline; one PEP solve online at the</span>
+<span id="cb2-331"><a href="#cb2-331" aria-hidden="true" tabindex="-1"></a>chosen <span class="in">`µ`</span> (no extra eigensolves for additional <span class="in">`µ`</span>).</span>
+<span id="cb2-332"><a href="#cb2-332" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-333"><a href="#cb2-333" aria-hidden="true" tabindex="-1"></a>**Where it shines.** Affine-in-<span class="in">`µ`</span> problems: interpolation is exact</span>
+<span id="cb2-334"><a href="#cb2-334" aria-hidden="true" tabindex="-1"></a>with <span class="in">`N_cheb = degree(µ) + 1`</span> nodes. The §3.3.2 benchmark</span>
+<span id="cb2-335"><a href="#cb2-335" aria-hidden="true" tabindex="-1"></a>problem has <span class="in">`K(µ) = µ⁻² K_1 + K_2`</span> — not polynomial in <span class="in">`µ`</span>, but</span>
+<span id="cb2-336"><a href="#cb2-336" aria-hidden="true" tabindex="-1"></a>polynomial in <span class="in">`µ⁻²`</span>. So Chebyshev in <span class="in">`t = µ⁻²`</span> gives an exact</span>
+<span id="cb2-337"><a href="#cb2-337" aria-hidden="true" tabindex="-1"></a>representation with 2 nodes.</span>
+<span id="cb2-338"><a href="#cb2-338" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-339"><a href="#cb2-339" aria-hidden="true" tabindex="-1"></a>**Where it breaks.** <span class="in">`λ(µ)`</span> is *not* polynomial in <span class="in">`µ`</span> even when</span>
+<span id="cb2-340"><a href="#cb2-340" aria-hidden="true" tabindex="-1"></a><span class="in">`K(µ)`</span>, <span class="in">`M(µ)`</span> are — it's an algebraic function. The PEP-of-an-</span>
+<span id="cb2-341"><a href="#cb2-341" aria-hidden="true" tabindex="-1"></a>interpolant approach gives access to *all* <span class="in">`n_dof`</span> eigenvalues, not</span>
+<span id="cb2-342"><a href="#cb2-342" aria-hidden="true" tabindex="-1"></a>just the lowest <span class="in">`k`</span>, so band-selection (first-k or window) must be</span>
+<span id="cb2-343"><a href="#cb2-343" aria-hidden="true" tabindex="-1"></a>imposed afterwards.</span>
+<span id="cb2-344"><a href="#cb2-344" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-345"><a href="#cb2-345" aria-hidden="true" tabindex="-1"></a>**Head-to-head against the greedy.** For affine problems, this</span>
+<span id="cb2-346"><a href="#cb2-346" aria-hidden="true" tabindex="-1"></a>measures whether the greedy's sample count exceeds the structural</span>
+<span id="cb2-347"><a href="#cb2-347" aria-hidden="true" tabindex="-1"></a>minimum dictated by the polynomial degree of <span class="in">`K(µ)`</span>, <span class="in">`M(µ)`</span> (2 for</span>
+<span id="cb2-348"><a href="#cb2-348" aria-hidden="true" tabindex="-1"></a>§3.3.2). The reference L=0..L=3 grid sizes for §3.3.2 are far</span>
+<span id="cb2-349"><a href="#cb2-349" aria-hidden="true" tabindex="-1"></a>above that minimum; the experiment quantifies *how far above* and</span>
+<span id="cb2-350"><a href="#cb2-350" aria-hidden="true" tabindex="-1"></a>allocates the excess between branch-identity costs and verdict-loop</span>
+<span id="cb2-351"><a href="#cb2-351" aria-hidden="true" tabindex="-1"></a>overhead.</span>
+<span id="cb2-352"><a href="#cb2-352" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-353"><a href="#cb2-353" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5B. Reduced-basis (POD on snapshots)</span></span>
+<span id="cb2-354"><a href="#cb2-354" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-355"><a href="#cb2-355" aria-hidden="true" tabindex="-1"></a>**Idea.** Sample <span class="in">`µ`</span> at a training set; collect eigenvectors; SVD</span>
+<span id="cb2-356"><a href="#cb2-356" aria-hidden="true" tabindex="-1"></a>→ reduced basis <span class="in">`V ∈ ℝ^{n_dof × r}`</span>. For any query <span class="in">`µ`</span>, solve the</span>
+<span id="cb2-357"><a href="#cb2-357" aria-hidden="true" tabindex="-1"></a>reduced problem <span class="in">`Vᵀ K(µ) V x = λ Vᵀ M(µ) V x`</span>.</span>
+<span id="cb2-358"><a href="#cb2-358" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-359"><a href="#cb2-359" aria-hidden="true" tabindex="-1"></a>**Cost.** Offline: <span class="in">`N_train · C_eig`</span> + SVD. Online: one <span class="in">`r × r`</span></span>
+<span id="cb2-360"><a href="#cb2-360" aria-hidden="true" tabindex="-1"></a>dense GEVP per query.</span>
+<span id="cb2-361"><a href="#cb2-361" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-362"><a href="#cb2-362" aria-hidden="true" tabindex="-1"></a>**Where it shines.** Many queries on a fixed parameter range. Same</span>
+<span id="cb2-363"><a href="#cb2-363" aria-hidden="true" tabindex="-1"></a>idea as the snapshot store in the rebuild — but with *fixed* offline</span>
+<span id="cb2-364"><a href="#cb2-364" aria-hidden="true" tabindex="-1"></a>training, not adaptive.</span>
+<span id="cb2-365"><a href="#cb2-365" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-366"><a href="#cb2-366" aria-hidden="true" tabindex="-1"></a>**Where it breaks.**</span>
+<span id="cb2-367"><a href="#cb2-367" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-368"><a href="#cb2-368" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Choice of training set is manual or heuristic. The greedy</span>
+<span id="cb2-369"><a href="#cb2-369" aria-hidden="true" tabindex="-1"></a>  algorithm exists precisely to remove this choice.</span>
+<span id="cb2-370"><a href="#cb2-370" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Accuracy depends on whether the training set captured the</span>
+<span id="cb2-371"><a href="#cb2-371" aria-hidden="true" tabindex="-1"></a>  parametric behaviour; no a posteriori certificate.</span>
+<span id="cb2-372"><a href="#cb2-372" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-373"><a href="#cb2-373" aria-hidden="true" tabindex="-1"></a>**Head-to-head against the greedy.** Train 5B on the greedy's</span>
+<span id="cb2-374"><a href="#cb2-374" aria-hidden="true" tabindex="-1"></a>terminal grid versus on a uniform grid of the same size, and compare</span>
+<span id="cb2-375"><a href="#cb2-375" aria-hidden="true" tabindex="-1"></a>ROM accuracy at unseen <span class="in">`µ`</span>. This measures whether the greedy's</span>
+<span id="cb2-376"><a href="#cb2-376" aria-hidden="true" tabindex="-1"></a>sample *selection* adds value beyond just selecting that *many*</span>
+<span id="cb2-377"><a href="#cb2-377" aria-hidden="true" tabindex="-1"></a>samples. If a uniform grid of the same node count gives comparable</span>
+<span id="cb2-378"><a href="#cb2-378" aria-hidden="true" tabindex="-1"></a>accuracy, the greedy's adaptivity is buying very little.</span>
+<span id="cb2-379"><a href="#cb2-379" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-380"><a href="#cb2-380" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5C. Greedy reduced basis (Maday–Patera RBM)</span></span>
+<span id="cb2-381"><a href="#cb2-381" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-382"><a href="#cb2-382" aria-hidden="true" tabindex="-1"></a>**Idea.** Classic reduced-basis method with a greedy training-set</span>
+<span id="cb2-383"><a href="#cb2-383" aria-hidden="true" tabindex="-1"></a>selection driven by an a posteriori error estimator. The</span>
+<span id="cb2-384"><a href="#cb2-384" aria-hidden="true" tabindex="-1"></a>adaptive-greedy algorithm sits in this family — the</span>
+<span id="cb2-385"><a href="#cb2-385" aria-hidden="true" tabindex="-1"></a>specific innovations being (i) sparse-grid topology over</span>
+<span id="cb2-386"><a href="#cb2-386" aria-hidden="true" tabindex="-1"></a>parameter space, (ii) the projection-mass verdict, and</span>
+<span id="cb2-387"><a href="#cb2-387" aria-hidden="true" tabindex="-1"></a>(iii) window-entry / window-exit labelling for windowed band</span>
+<span id="cb2-388"><a href="#cb2-388" aria-hidden="true" tabindex="-1"></a>selection.</span>
+<span id="cb2-389"><a href="#cb2-389" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-390"><a href="#cb2-390" aria-hidden="true" tabindex="-1"></a>**Head-to-head against the rebuild's specific algorithm.** Substitute</span>
+<span id="cb2-391"><a href="#cb2-391" aria-hidden="true" tabindex="-1"></a>the reference method's verdict for the classical residual-norm estimator</span>
+<span id="cb2-392"><a href="#cb2-392" aria-hidden="true" tabindex="-1"></a><span class="in">`η(µ) = ‖K(µ) V x − λ M(µ) V x‖ / ‖M(µ) V x‖`</span> and measure how the</span>
+<span id="cb2-393"><a href="#cb2-393" aria-hidden="true" tabindex="-1"></a>refinement trajectory differs. The classical estimator is</span>
+<span id="cb2-394"><a href="#cb2-394" aria-hidden="true" tabindex="-1"></a>*error-driven*; the adaptive-greedy's is *projection-driven*. These</span>
+<span id="cb2-395"><a href="#cb2-395" aria-hidden="true" tabindex="-1"></a>are not equivalent, and the experiment quantifies which one selects</span>
+<span id="cb2-396"><a href="#cb2-396" aria-hidden="true" tabindex="-1"></a>more useful samples on a fixed problem.</span>
+<span id="cb2-397"><a href="#cb2-397" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-398"><a href="#cb2-398" aria-hidden="true" tabindex="-1"></a><span class="fu">### 5D. Direct interpolation of `λ_n(µ)` per branch</span></span>
+<span id="cb2-399"><a href="#cb2-399" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-400"><a href="#cb2-400" aria-hidden="true" tabindex="-1"></a>**Idea.** Sample a dense <span class="in">`µ`</span>-grid, run 2B to get branch-tracked</span>
+<span id="cb2-401"><a href="#cb2-401" aria-hidden="true" tabindex="-1"></a>eigenvalues, then fit a smooth interpolant (cubic spline, Chebyshev,</span>
+<span id="cb2-402"><a href="#cb2-402" aria-hidden="true" tabindex="-1"></a>radial basis function) to each branch independently.</span>
+<span id="cb2-403"><a href="#cb2-403" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-404"><a href="#cb2-404" aria-hidden="true" tabindex="-1"></a>**Cost.** Same as 2B offline; trivial online.</span>
+<span id="cb2-405"><a href="#cb2-405" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-406"><a href="#cb2-406" aria-hidden="true" tabindex="-1"></a>**Where it shines.** Smooth branches in smooth regions; the</span>
+<span id="cb2-407"><a href="#cb2-407" aria-hidden="true" tabindex="-1"></a>interpolant captures <span class="in">`λ_n(µ)`</span> to machine precision with few nodes</span>
+<span id="cb2-408"><a href="#cb2-408" aria-hidden="true" tabindex="-1"></a>per branch.</span>
+<span id="cb2-409"><a href="#cb2-409" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-410"><a href="#cb2-410" aria-hidden="true" tabindex="-1"></a>**Where it breaks.** Crossings: interpolating across a crossing</span>
+<span id="cb2-411"><a href="#cb2-411" aria-hidden="true" tabindex="-1"></a>mixes branches. Has to be combined with explicit crossing detection</span>
+<span id="cb2-412"><a href="#cb2-412" aria-hidden="true" tabindex="-1"></a>to subdivide the interval.</span>
+<span id="cb2-413"><a href="#cb2-413" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-414"><a href="#cb2-414" aria-hidden="true" tabindex="-1"></a>**Head-to-head.** This is the simplest possible surrogate that uses</span>
+<span id="cb2-415"><a href="#cb2-415" aria-hidden="true" tabindex="-1"></a>branch information. If the goal is just <span class="in">`λ_n(µ)`</span> evaluation (not</span>
+<span id="cb2-416"><a href="#cb2-416" aria-hidden="true" tabindex="-1"></a>eigenvector evaluation), the experiment measures whether anything</span>
+<span id="cb2-417"><a href="#cb2-417" aria-hidden="true" tabindex="-1"></a>fancier than per-branch interpolation pays off in 1D.</span>
+<span id="cb2-418"><a href="#cb2-418" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-419"><a href="#cb2-419" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-420"><a href="#cb2-420" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-421"><a href="#cb2-421" aria-hidden="true" tabindex="-1"></a><span class="fu">## 6. Contour-integral spectral methods</span></span>
+<span id="cb2-422"><a href="#cb2-422" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-423"><a href="#cb2-423" aria-hidden="true" tabindex="-1"></a>These methods are window-mode native: they compute eigenpairs in a</span>
+<span id="cb2-424"><a href="#cb2-424" aria-hidden="true" tabindex="-1"></a>prescribed <span class="in">`[λ_lo, λ_hi]`</span> without computing the rest of the</span>
+<span id="cb2-425"><a href="#cb2-425" aria-hidden="true" tabindex="-1"></a>spectrum.</span>
+<span id="cb2-426"><a href="#cb2-426" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-427"><a href="#cb2-427" aria-hidden="true" tabindex="-1"></a><span class="fu">### 6A. FEAST / Sakurai–Sugiura at each `µ_j`</span></span>
+<span id="cb2-428"><a href="#cb2-428" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-429"><a href="#cb2-429" aria-hidden="true" tabindex="-1"></a>**Idea.** Enclose <span class="in">`[λ_lo, λ_hi]`</span> in a complex contour. Approximate</span>
+<span id="cb2-430"><a href="#cb2-430" aria-hidden="true" tabindex="-1"></a>the spectral projector onto the enclosed eigenspace by Gauss–Legendre</span>
+<span id="cb2-431"><a href="#cb2-431" aria-hidden="true" tabindex="-1"></a>quadrature of the resolvent <span class="in">`(zM − K)⁻¹M`</span> over the contour. Diagonalise</span>
+<span id="cb2-432"><a href="#cb2-432" aria-hidden="true" tabindex="-1"></a>the projector to recover the enclosed eigenpairs.</span>
+<span id="cb2-433"><a href="#cb2-433" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-434"><a href="#cb2-434" aria-hidden="true" tabindex="-1"></a>**Cost.** Per <span class="in">`µ_j`</span>: one linear solve at each quadrature node (≈ 8–16</span>
+<span id="cb2-435"><a href="#cb2-435" aria-hidden="true" tabindex="-1"></a>nodes typical). For *affine* <span class="in">`K(µ)`</span>, the per-node factorisations can</span>
+<span id="cb2-436"><a href="#cb2-436" aria-hidden="true" tabindex="-1"></a>be **precomputed once across all `µ`** if the resolvent's <span class="in">`µ`</span>-dependence</span>
+<span id="cb2-437"><a href="#cb2-437" aria-hidden="true" tabindex="-1"></a>is handled symbolically. Otherwise per-<span class="in">`µ`</span> cost is <span class="in">`O(N_quad · C_solve)`</span>.</span>
+<span id="cb2-438"><a href="#cb2-438" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-439"><a href="#cb2-439" aria-hidden="true" tabindex="-1"></a>**Where it shines.**</span>
+<span id="cb2-440"><a href="#cb2-440" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-441"><a href="#cb2-441" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Window mode native** — solves exactly the band-selection problem</span>
+<span id="cb2-442"><a href="#cb2-442" aria-hidden="true" tabindex="-1"></a>  the adaptive-greedy's Window mode tries to handle (whose</span>
+<span id="cb2-443"><a href="#cb2-443" aria-hidden="true" tabindex="-1"></a>  window-entry / window-exit semantics remain ambiguous in the</span>
+<span id="cb2-444"><a href="#cb2-444" aria-hidden="true" tabindex="-1"></a>  greedy).</span>
+<span id="cb2-445"><a href="#cb2-445" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Embarrassingly parallel across both <span class="in">`µ`</span> and quadrature nodes.</span>
+<span id="cb2-446"><a href="#cb2-446" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>No "first-k" cutoff issue; no truncation-gauge problem.</span>
+<span id="cb2-447"><a href="#cb2-447" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-448"><a href="#cb2-448" aria-hidden="true" tabindex="-1"></a>**Where it breaks.**</span>
+<span id="cb2-449"><a href="#cb2-449" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-450"><a href="#cb2-450" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Number of eigenpairs in the window is not known in advance; FEAST</span>
+<span id="cb2-451"><a href="#cb2-451" aria-hidden="true" tabindex="-1"></a>  needs a guess for the subspace dimension. Too small → missed</span>
+<span id="cb2-452"><a href="#cb2-452" aria-hidden="true" tabindex="-1"></a>  eigenvalues; too large → wasted work.</span>
+<span id="cb2-453"><a href="#cb2-453" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Conditioning of the contour quadrature depends on the gap between</span>
+<span id="cb2-454"><a href="#cb2-454" aria-hidden="true" tabindex="-1"></a>  the contour and the nearest eigenvalues outside the window.</span>
+<span id="cb2-455"><a href="#cb2-455" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-456"><a href="#cb2-456" aria-hidden="true" tabindex="-1"></a>**Head-to-head against greedy Window mode.** Solve §3.3.2's window</span>
+<span id="cb2-457"><a href="#cb2-457" aria-hidden="true" tabindex="-1"></a>problem (<span class="in">`[0, 270]`</span> per the reference choice) by FEAST at each</span>
+<span id="cb2-458"><a href="#cb2-458" aria-hidden="true" tabindex="-1"></a><span class="in">`µ`</span> on a uniform grid, and compare against the greedy algorithm in</span>
+<span id="cb2-459"><a href="#cb2-459" aria-hidden="true" tabindex="-1"></a>Window mode. The experiment measures the trade-off between two</span>
+<span id="cb2-460"><a href="#cb2-460" aria-hidden="true" tabindex="-1"></a>qualitatively different cost axes: FEAST has no window-entry /</span>
+<span id="cb2-461"><a href="#cb2-461" aria-hidden="true" tabindex="-1"></a>window-exit ambiguity by construction but pays the full per-<span class="in">`µ`</span></span>
+<span id="cb2-462"><a href="#cb2-462" aria-hidden="true" tabindex="-1"></a>cost; the greedy reduces sample count but inherits that interpretive</span>
+<span id="cb2-463"><a href="#cb2-463" aria-hidden="true" tabindex="-1"></a>ambiguity at termination.</span>
+<span id="cb2-464"><a href="#cb2-464" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-465"><a href="#cb2-465" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-466"><a href="#cb2-466" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-467"><a href="#cb2-467" aria-hidden="true" tabindex="-1"></a><span class="fu">## 7. Symbolic / characteristic-polynomial methods (very low-dim only)</span></span>
+<span id="cb2-468"><a href="#cb2-468" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-469"><a href="#cb2-469" aria-hidden="true" tabindex="-1"></a>For *very small* <span class="in">`n_dof`</span> (say, <span class="in">`n_dof ≤ 20`</span>), the characteristic</span>
+<span id="cb2-470"><a href="#cb2-470" aria-hidden="true" tabindex="-1"></a>polynomial <span class="in">`p(µ, λ) = det(K(µ) − λ M(µ))`</span> can be computed symbolically</span>
+<span id="cb2-471"><a href="#cb2-471" aria-hidden="true" tabindex="-1"></a>in <span class="in">`µ`</span> if <span class="in">`K(µ), M(µ)`</span> are polynomial (or rational) in <span class="in">`µ`</span>. The</span>
+<span id="cb2-472"><a href="#cb2-472" aria-hidden="true" tabindex="-1"></a>zero set of <span class="in">`p(µ, λ)`</span> is an algebraic curve in <span class="in">`(µ, λ)`</span>-space, and the</span>
+<span id="cb2-473"><a href="#cb2-473" aria-hidden="true" tabindex="-1"></a>branches are the connected components of that curve.</span>
+<span id="cb2-474"><a href="#cb2-474" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-475"><a href="#cb2-475" aria-hidden="true" tabindex="-1"></a>**Cost.** Symbolic determinant: <span class="in">`O(n³)`</span> in symbolic operations,</span>
+<span id="cb2-476"><a href="#cb2-476" aria-hidden="true" tabindex="-1"></a>exponential in the polynomial degree of <span class="in">`K(µ), M(µ)`</span>. Solving</span>
+<span id="cb2-477"><a href="#cb2-477" aria-hidden="true" tabindex="-1"></a><span class="in">`p(µ_j, λ) = 0`</span> at a fixed <span class="in">`µ_j`</span> is a univariate root-finding in <span class="in">`λ`</span>.</span>
+<span id="cb2-478"><a href="#cb2-478" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-479"><a href="#cb2-479" aria-hidden="true" tabindex="-1"></a>**Status.** Not practical at the reference problems' <span class="in">`n_dof ≈ 10⁴`</span>. Worth</span>
+<span id="cb2-480"><a href="#cb2-480" aria-hidden="true" tabindex="-1"></a>mentioning because it is the *mathematically exact* answer in the</span>
+<span id="cb2-481"><a href="#cb2-481" aria-hidden="true" tabindex="-1"></a>toy regime where it applies — useful as a sanity check on</span>
+<span id="cb2-482"><a href="#cb2-482" aria-hidden="true" tabindex="-1"></a>implementations at, e.g., <span class="in">`n_dof = 4`</span>.</span>
+<span id="cb2-483"><a href="#cb2-483" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-484"><a href="#cb2-484" aria-hidden="true" tabindex="-1"></a>**Head-to-head.** A unit-test-scale verification, not a benchmark.</span>
+<span id="cb2-485"><a href="#cb2-485" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-486"><a href="#cb2-486" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-487"><a href="#cb2-487" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-488"><a href="#cb2-488" aria-hidden="true" tabindex="-1"></a><span class="fu">## 8. Comparison axes — what an experiment would measure</span></span>
+<span id="cb2-489"><a href="#cb2-489" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-490"><a href="#cb2-490" aria-hidden="true" tabindex="-1"></a>Any head-to-head experiment should report a fixed tuple, computed</span>
+<span id="cb2-491"><a href="#cb2-491" aria-hidden="true" tabindex="-1"></a>against the same dense reference (a uniform fine-mesh sweep, §2A):</span>
+<span id="cb2-492"><a href="#cb2-492" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-493"><a href="#cb2-493" aria-hidden="true" tabindex="-1"></a>| Axis | Definition | Why it matters |</span>
+<span id="cb2-494"><a href="#cb2-494" aria-hidden="true" tabindex="-1"></a>|------|------------|----------------|</span>
+<span id="cb2-495"><a href="#cb2-495" aria-hidden="true" tabindex="-1"></a>| **Eigensolve count** | Number of eigensolver calls | The dominant cost at any realistic <span class="in">`n_dof`</span>. Sample count × per-sample solve count. |</span>
+<span id="cb2-496"><a href="#cb2-496" aria-hidden="true" tabindex="-1"></a>| **Wall time** | Total compute time to reach a fixed accuracy <span class="in">`ε`</span> | Captures secondary costs (matching, projection, assembly) that the eigensolve count ignores. |</span>
+<span id="cb2-497"><a href="#cb2-497" aria-hidden="true" tabindex="-1"></a>| **`λ`-accuracy** | <span class="in">`max_µ max_n |λ_method(µ, n) − λ_truth(µ, n)|`</span> after Hungarian-aligning branches | The actual quantity the user cares about. |</span>
+<span id="cb2-498"><a href="#cb2-498" aria-hidden="true" tabindex="-1"></a>| **Eigenvector accuracy** | <span class="in">`max_µ max_n`</span> subspace angle between cluster-equivalent eigenspaces | The quantity downstream physics computations care about. |</span>
+<span id="cb2-499"><a href="#cb2-499" aria-hidden="true" tabindex="-1"></a>| **Branch-identity error rate** | Fraction of <span class="in">`(µ, n)`</span> pairs where the method's branch label disagrees with the dense reference's | Measures whether the method actually solves "track curves" or only "find eigenvalues." Greedy Window mode answers this poorly — no curve identification exists behind its window-entry / window-exit labels. |</span>
+<span id="cb2-500"><a href="#cb2-500" aria-hidden="true" tabindex="-1"></a>| **Crossing detection** | True / false positives / negatives on crossings, vs. dense reference | Specific to crossing-handling claims. The greedy's refine-or-certify verdict is silent on crossings; window-entry / window-exit labels claim them but cannot certify them. |</span>
+<span id="cb2-501"><a href="#cb2-501" aria-hidden="true" tabindex="-1"></a>| **Robustness to tolerance perturbation** | Same metrics under ±20% perturbation of all tolerances / step sizes | The reference method's tolerances are trial-and-error, with no principled selection rule; robustness is a first-class property, not an afterthought. |</span>
+<span id="cb2-502"><a href="#cb2-502" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-503"><a href="#cb2-503" aria-hidden="true" tabindex="-1"></a>Each experiment fixes a method, a target accuracy <span class="in">`ε`</span>, and reports</span>
+<span id="cb2-504"><a href="#cb2-504" aria-hidden="true" tabindex="-1"></a>the seven-tuple. The reference method (greedy, §1) provides the</span>
+<span id="cb2-505"><a href="#cb2-505" aria-hidden="true" tabindex="-1"></a>baseline column; each other method provides one or more columns.</span>
+<span id="cb2-506"><a href="#cb2-506" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-507"><a href="#cb2-507" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-508"><a href="#cb2-508" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-509"><a href="#cb2-509" aria-hidden="true" tabindex="-1"></a><span class="fu">## 9. Candidate experiments worth scoping</span></span>
+<span id="cb2-510"><a href="#cb2-510" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-511"><a href="#cb2-511" aria-hidden="true" tabindex="-1"></a>Three experiments stand out as the most informative if the</span>
+<span id="cb2-512"><a href="#cb2-512" aria-hidden="true" tabindex="-1"></a>comparison framework is ever exercised end-to-end. None has been</span>
+<span id="cb2-513"><a href="#cb2-513" aria-hidden="true" tabindex="-1"></a>committed to; this list scopes the questions, not the build.</span>
+<span id="cb2-514"><a href="#cb2-514" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-515"><a href="#cb2-515" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Adaptivity ratio on §3.3.2.** Greedy vs. uniform dense grid</span>
+<span id="cb2-516"><a href="#cb2-516" aria-hidden="true" tabindex="-1"></a>   (§2A) on the reference 1D problem. Question: at the same</span>
+<span id="cb2-517"><a href="#cb2-517" aria-hidden="true" tabindex="-1"></a>   <span class="in">`ε`</span>, what is <span class="in">`N_nodes_uniform(ε) / N_nodes_greedy(ε)`</span>? This is</span>
+<span id="cb2-518"><a href="#cb2-518" aria-hidden="true" tabindex="-1"></a>   the headline number the reference leaves unreported, and the</span>
+<span id="cb2-519"><a href="#cb2-519" aria-hidden="true" tabindex="-1"></a>   denominator every other comparison in this catalogue feeds into.</span>
+<span id="cb2-520"><a href="#cb2-520" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-521"><a href="#cb2-521" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Greedy vs. predictor–corrector with branch switching (§4B).**</span>
+<span id="cb2-522"><a href="#cb2-522" aria-hidden="true" tabindex="-1"></a>   Same problem. Question: does locating crossings explicitly</span>
+<span id="cb2-523"><a href="#cb2-523" aria-hidden="true" tabindex="-1"></a>   (test-function detection + branch switch) outperform locating</span>
+<span id="cb2-524"><a href="#cb2-524" aria-hidden="true" tabindex="-1"></a>   them implicitly (bisection until certification fires)? This is</span>
+<span id="cb2-525"><a href="#cb2-525" aria-hidden="true" tabindex="-1"></a>   the most direct comparison of the adaptive-greedy method's contribution</span>
+<span id="cb2-526"><a href="#cb2-526" aria-hidden="true" tabindex="-1"></a>   against the classical numerical-continuation playbook.</span>
+<span id="cb2-527"><a href="#cb2-527" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-528"><a href="#cb2-528" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Greedy Window mode vs. FEAST per-`µ` on a uniform grid (§6A).**</span>
+<span id="cb2-529"><a href="#cb2-529" aria-hidden="true" tabindex="-1"></a>   Specifically on §3.3.2 with the reference <span class="in">`I_λ = [0, 270]`</span>.</span>
+<span id="cb2-530"><a href="#cb2-530" aria-hidden="true" tabindex="-1"></a>   Question: does the greedy's sample-count advantage outweigh</span>
+<span id="cb2-531"><a href="#cb2-531" aria-hidden="true" tabindex="-1"></a>   FEAST's semantic-clarity advantage (no window-entry / window-exit</span>
+<span id="cb2-532"><a href="#cb2-532" aria-hidden="true" tabindex="-1"></a>   ambiguity, no truncation gauge)?</span>
+<span id="cb2-533"><a href="#cb2-533" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-534"><a href="#cb2-534" aria-hidden="true" tabindex="-1"></a>Experiment #1 is the most consequential — it answers whether the</span>
+<span id="cb2-535"><a href="#cb2-535" aria-hidden="true" tabindex="-1"></a>greedy is worth its complexity over a dense grid at all, and</span>
+<span id="cb2-536"><a href="#cb2-536" aria-hidden="true" tabindex="-1"></a>calibrates the denominator the other two are reported against.</span>
+<span id="cb2-537"><a href="#cb2-537" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-538"><a href="#cb2-538" aria-hidden="true" tabindex="-1"></a>The continuation methods catalogued in §§3–4 are also the candidate</span>
+<span id="cb2-539"><a href="#cb2-539" aria-hidden="true" tabindex="-1"></a>attacks on the **6D wall-time wall** — after the snapshot store ceased</span>
+<span id="cb2-540"><a href="#cb2-540" aria-hidden="true" tabindex="-1"></a>to be the binding constraint, the §4.4.5 6D run is</span>
+<span id="cb2-541"><a href="#cb2-541" aria-hidden="true" tabindex="-1"></a>capped by the sheer number of full eigensolves, not by memory. That</span>
+<span id="cb2-542"><a href="#cb2-542" aria-hidden="true" tabindex="-1"></a>feasibility problem — is there a crossing-safe per-step continuation</span>
+<span id="cb2-543"><a href="#cb2-543" aria-hidden="true" tabindex="-1"></a>cheap enough to replace the cold-start eigensolve at each new</span>
+<span id="cb2-544"><a href="#cb2-544" aria-hidden="true" tabindex="-1"></a>parameter point and finish 6D in practical wall time? — is posed in a</span>
+<span id="cb2-545"><a href="#cb2-545" aria-hidden="true" tabindex="-1"></a>companion research note (not yet published) on open problems, which</span>
+<span id="cb2-546"><a href="#cb2-546" aria-hidden="true" tabindex="-1"></a>draws on this section's cost / crossing-safety trade-offs.</span>
+<span id="cb2-547"><a href="#cb2-547" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-548"><a href="#cb2-548" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-549"><a href="#cb2-549" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-550"><a href="#cb2-550" aria-hidden="true" tabindex="-1"></a><span class="fu">## 10. What this document is not</span></span>
+<span id="cb2-551"><a href="#cb2-551" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-552"><a href="#cb2-552" aria-hidden="true" tabindex="-1"></a>Not a literature survey (each method gets one paragraph, not its</span>
+<span id="cb2-553"><a href="#cb2-553" aria-hidden="true" tabindex="-1"></a>canonical references), not a benchmark (no numbers — the point is to</span>
+<span id="cb2-554"><a href="#cb2-554" aria-hidden="true" tabindex="-1"></a>fix the axes before running anything), and not exhaustive (block</span>
+<span id="cb2-555"><a href="#cb2-555" aria-hidden="true" tabindex="-1"></a>iterative methods, trace-based spectral indicators, random-projection</span>
+<span id="cb2-556"><a href="#cb2-556" aria-hidden="true" tabindex="-1"></a>methods, and FE multigrid eigensolvers are explicitly omitted).</span>
+<span id="cb2-557"><a href="#cb2-557" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-558"><a href="#cb2-558" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-559"><a href="#cb2-559" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-560"><a href="#cb2-560" aria-hidden="true" tabindex="-1"></a>_Last updated: 2026-06-08._</span></code><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></pre></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

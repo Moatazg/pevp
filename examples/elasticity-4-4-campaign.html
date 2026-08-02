@@ -1,0 +1,1978 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.57">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>§4.4 6D campaign — quality demonstration at scale – The adaptive-greedy parametric eigenvalue solver</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script>
+// Collapse sidebar sections on load; only expand the one with the active page.
+(function () {
+  function collapseSidebarSections() {
+    var sections = document.querySelectorAll(".sidebar-section");
+    var activeSection = null;
+    sections.forEach(function (sec) {
+      if (sec.querySelector(".sidebar-item-text.active, .sidebar-link.active")) {
+        activeSection = sec;
+      }
+    });
+    sections.forEach(function (sec) {
+      if (sec === activeSection) return;
+      sec.classList.remove("show");
+    });
+    // Sync aria-expanded on the toggle buttons.
+    document.querySelectorAll("[data-bs-target^='#quarto-sidebar-section']").forEach(function (btn) {
+      var target = document.querySelector(btn.getAttribute("data-bs-target"));
+      if (target) {
+        btn.setAttribute("aria-expanded", target.classList.contains("show") ? "true" : "false");
+      }
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", collapseSidebarSections);
+  } else {
+    collapseSidebarSections();
+  }
+})();
+</script>
+
+<script>
+// Per-level refinement-animation widget.
+// Auto-initialises every element matching `.level-scroll[data-frames]`.
+// data-frames: comma-separated image URLs (one per refinement level).
+// data-caption: template; "{i}" → frame index + data-level-start (default 0).
+(function () {
+  function init(el) {
+    var frames = (el.dataset.frames || "")
+      .split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+    if (frames.length === 0) return;
+    var captionTpl = el.dataset.caption || "L={i}";
+    var levelStart = parseInt(el.dataset.levelStart || "0", 10);
+    var img = el.querySelector("img.frame");
+    var slider = el.querySelector("input[type=range]");
+    var caption = el.querySelector(".caption .level");
+    if (!img || !slider || !caption) return;
+    slider.min = "0";
+    slider.max = String(frames.length - 1);
+    slider.step = "1";
+    if (!slider.value) slider.value = "0";
+    function render(idx) {
+      var i = Math.max(0, Math.min(frames.length - 1, idx));
+      img.src = frames[i];
+      caption.textContent = captionTpl.replace("{i}", String(i + levelStart));
+    }
+    slider.addEventListener("input", function () {
+      render(parseInt(slider.value, 10));
+    });
+    el.tabIndex = 0;
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") {
+        slider.value = String(Math.max(0, parseInt(slider.value, 10) - 1));
+        render(parseInt(slider.value, 10));
+        e.preventDefault();
+      } else if (e.key === "ArrowRight") {
+        slider.value = String(Math.min(frames.length - 1, parseInt(slider.value, 10) + 1));
+        render(parseInt(slider.value, 10));
+        e.preventDefault();
+      }
+    });
+    render(parseInt(slider.value, 10));
+  }
+  function initAll() {
+    var els = document.querySelectorAll(".level-scroll[data-frames]");
+    for (var i = 0; i < els.length; i++) init(els[i]);
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAll);
+  } else {
+    initAll();
+  }
+})();
+</script>
+
+
+<link rel="stylesheet" href="../assets/level-scroll.css">
+</head>
+
+<body class="nav-sidebar docked nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">The adaptive-greedy parametric eigenvalue solver</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/Moatazg/pevp-rebuild"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../demonstrations.html">Demonstrations</a></li><li class="breadcrumb-item"><a href="../examples/elasticity-4-4-campaign.html">§4.4 6D campaign — quality demonstration at scale</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Validation</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/spectrum-samples.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Is the finite-element substrate trustworthy?</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/affine-cache-cross-check.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Affine-cache cross-check</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Demonstrations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../demonstrations.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/diffusion-3-3-2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D diffusion eigenproblem with a one-parameter coefficient</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/diffusion-3-3-3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D diffusion eigenproblem with a two-parameter coefficient</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/elasticity-2d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D plane-stress elasticity eigenproblem</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/elasticity-4-4-campaign.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">§4.4 6D campaign — quality demonstration at scale</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/elasticity-4-4-evidence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">§4.4 6D campaign — the correctness evidence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/rom-vs-dense.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ROM vs dense FE sweep</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/two-chamber-resonator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Two-Chamber Resonator — the Minimal Crossing Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Mechanisms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../mechanisms.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/crossing-and-projection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Persistent Π Failures at Eigenvalue Crossings</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/domain-decomposition.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Dynamic domain decomposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sensitivity</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../sensitivity.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/mesh-independence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Mesh independence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/tolerance-perturbation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Tolerance perturbation — how load-bearing is the threshold choice?</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/knob-sweep.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Knob sweep — how sensitive is the grid to the thresholds?</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Studies</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../studies.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../why-this-algorithm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Why the adaptive-greedy algorithm for parametric eigenvalue problems</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../method-comparison-1d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Methods for the 1D Parametric Eigenvalue Problem: A Comparison Framework</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../strategy-comparison.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Refinement strategy A/B: edge-bisection vs hierarchical (measured)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../coverage-policy-validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cost-Accuracy Validation of the Composite Refinement Policy π⋆</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../runtime-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Runtime analysis: the one-path verdict vs the retired span/tracking modes (measured)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parallel-execution.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Real Parallel Execution of Domain-Decomposition Refinement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../region-parallel-speedup.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Projected Parallel Speedup of Dynamic Domain Decomposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Methodology</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">How it works — the algorithm end to end</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Correctness Techniques in <code>pevp-rebuild</code></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reference correctness-demonstration techniques</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Acknowledged issues in the adaptive-greedy pEVP algorithm</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Algorithm Parity Audit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Rebuild vs dissertation — the three-way divergence record</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open Methodological Questions for Validating the Rebuilt pEVP Algorithm</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open Research and Architecture Problems for the pEVP Rebuild</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open-Problems Status Register</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">The partial sparse grid, formally — admissible subtree ↔︎ lower set, directional surplus, hanging nodes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Classifying Eigenvalue-Crossing Type Beyond the Block Matrix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sheet decomposition: matching-driven hypersurfaces and the plaquette holonomy certificate</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Dynamic Domain Decomposition of the Parameter Space</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Hierarchical refinement strategy and the one-sided parent↔︎child verdict</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#rom-error-at-6d-held-out-table-and-soundness-curve" id="toc-rom-error-at-6d-held-out-table-and-soundness-curve" class="nav-link active" data-scroll-target="#rom-error-at-6d-held-out-table-and-soundness-curve">ROM error at 6D — held-out table and soundness curve</a></li>
+  <li><a href="#exact-p2-mesh-faithful-convergence-dir-122" id="toc-exact-p2-mesh-faithful-convergence-dir-122" class="nav-link" data-scroll-target="#exact-p2-mesh-faithful-convergence-dir-122">Exact-P2 mesh-faithful convergence (DIR-122)</a></li>
+  <li><a href="#faithful-full-scale-run-past-matlabs-l2-wall-dir-124" id="toc-faithful-full-scale-run-past-matlabs-l2-wall-dir-124" class="nav-link" data-scroll-target="#faithful-full-scale-run-past-matlabs-l2-wall-dir-124">Faithful full-scale run past MATLAB’s L2 wall (DIR-124)</a></li>
+  <li><a href="#deep-continuation-does-it-converge-and-does-deeper-get-better-dir-125" id="toc-deep-continuation-does-it-converge-and-does-deeper-get-better-dir-125" class="nav-link" data-scroll-target="#deep-continuation-does-it-converge-and-does-deeper-get-better-dir-125">Deep continuation — does it converge, and does deeper get better? (DIR-125)</a></li>
+  <li><a href="#certification-telemetry-the-independent-inertia-certificate" id="toc-certification-telemetry-the-independent-inertia-certificate" class="nav-link" data-scroll-target="#certification-telemetry-the-independent-inertia-certificate">Certification telemetry — the independent inertia certificate</a></li>
+  <li><a href="#domain-decomposition-at-6d-tier-1-rank-savings" id="toc-domain-decomposition-at-6d-tier-1-rank-savings" class="nav-link" data-scroll-target="#domain-decomposition-at-6d-tier-1-rank-savings">Domain decomposition at 6D — Tier 1 (rank savings)</a></li>
+  <li><a href="#domain-decomposition-at-6d-tier-2-measured-parallel-speedup" id="toc-domain-decomposition-at-6d-tier-2-measured-parallel-speedup" class="nav-link" data-scroll-target="#domain-decomposition-at-6d-tier-2-measured-parallel-speedup">Domain decomposition at 6D — Tier 2 (measured parallel speedup)</a></li>
+  <li><a href="#mesh-independence" id="toc-mesh-independence" class="nav-link" data-scroll-target="#mesh-independence">Mesh independence</a></li>
+  <li><a href="#bounded-resource-record-dissertation-scale-in-seconds" id="toc-bounded-resource-record-dissertation-scale-in-seconds" class="nav-link" data-scroll-target="#bounded-resource-record-dissertation-scale-in-seconds">Bounded-resource record — dissertation scale in seconds</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../demonstrations.html">Demonstrations</a></li><li class="breadcrumb-item"><a href="../examples/elasticity-4-4-campaign.html">§4.4 6D campaign — quality demonstration at scale</a></li></ol></nav>
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">§4.4 6D campaign — quality demonstration at scale</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>Every quality instrument the rebuild ships — ROM error gauges (DIR-003/053), the a-posteriori certification pipeline with mass-budget telemetry (DIR-088), the inertia window-entry certificate (DIR-089), dynamic domain decomposition (DIR-036) with measured parallel execution (DIR-055B/C), and the bounded- resource store (DIR-030/032/035) — was validated on 1D/2D problems or 6D smoke scale. This page is the first time they are exercised <strong>together</strong> on the dissertation’s §4.4 problem: 2D <strong>plane-strain</strong> elasticity on the L-shape Ω = Ω₁∪Ω₂∪Ω₃ with per-face (Eᵢ, νᵢ), a <strong>6-dimensional</strong> parameter box [10,100]³×[0.1,0.4]³ (interleaved), clamped on Edges 1 &amp; 2 (base + top-arm end), Window mode over the natural-frequency band ω ∈ [0, 12.5] i.e. λ ∈ [0, 156.25], dissertation thresholds t_π = 0.57, t_λ = 0.03, t_c = 0.1.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Provenance — these numbers are the DIR-113 re-run on the corrected operator
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p>An earlier version of this page (DIR-110) reported this campaign on a <strong>fake-soft operator</strong>: <code>Elasticity2D</code> assembled the vector mass with <code>ddot</code> (matrix double-contraction) instead of <code>dot</code>, giving <code>trace(M) ∝ n²</code> and crushing every eigenvalue <code>∝ h²</code>, so the window [0, 12] on λ held <strong>&gt;960 spurious modes</strong> where the dissertation tracks a handful of surfaces. <strong>DIR-112 found and fixed the root cause</strong> (deviation log <a href="../examples/methodology-unpublished.html"><code>elasticity-4-4-baseline-deviation-log.md</code></a>, rows 9–13): the mass bug plus two convention mismatches — the window filters the natural frequency ω = √λ (so on λ the faithful band is [0, 156.25], not [0, 12]), and the physics is <code>modal-planestrain</code> clamping only Edges 1 &amp; 2, not plane stress with the whole boundary clamped. On the corrected + faithful config (<code>make_l_shape_6d_faithful</code>) the box midpoint holds <strong>8 modes</strong> — matching a headless MATLAB run of the frozen <code>ComputationalDomain6Dreal.m</code> to ~0.7 % on the first eight eigenvalues (P1-vs-P2).</p>
+<p><strong>DIR-113 re-ran the entire campaign on the corrected operator</strong>; every number below is faithful and pinned by <code>tests/test_dir_113_artifacts.py</code>. The pre-fix <code>tests/artifacts/dir_110/</code> set is retained on disk as archived pre-fix data but is no longer rendered here. The scale-invariant sibling results held up exactly as DIR-112 predicted: the DIR-053 ROM ceiling (a FirstK/full-basis measurement) is unchanged, and the DIR-089 “stay-dense” inertia verdict survives on the now much sparser window.</p>
+</div>
+</div>
+<p>This page carries the campaign’s <em>performance and self-consistency</em> story. The <strong>correctness case</strong> — the five-strand evidence argument (slice views, inertia certificate, holonomy/ν-index consistency, sampled statistical audit, setup invariance) that replaces the 1D/2D branch-figure eyeball certificate — lives on its own page: <a href="../examples/elasticity-4-4-evidence.html"><strong>§4.4 6D campaign — the correctness evidence</strong></a>.</p>
+<p>Everything below is <strong>measured on committed artifacts</strong> (<code>tests/artifacts/dir_113/</code>). The pre-fix campaign needed staged, budget-bounded overnight runs; on the corrected operator the whole campaign runs in <strong>seconds</strong> — the fake window’s ~380–960 modes/node were the entire cost, and the true window holds only <strong>~8–20 modes/node</strong> (Stage A: min 7, max 21, mean 10.6):</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Stage</th>
+<th style="text-align: left;">scale</th>
+<th style="text-align: left;">config</th>
+<th style="text-align: left;">outcome</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">A</td>
+<td style="text-align: left;">n_dof = 1846 (<code>--target-n-dof 1500</code>), L≤4</td>
+<td style="text-align: left;">serial, single region, <code>--mass-telemetry</code>, RunCache</td>
+<td style="text-align: left;">L4 completed, <code>ran_out=True</code>, <strong>32 nodes, wall 1.6 s, peak RSS 96 MB, 0 evictions</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">B1</td>
+<td style="text-align: left;">same scale</td>
+<td style="text-align: left;"><code>--regions --parallel-workers 14 --fixed-v0</code></td>
+<td style="text-align: left;">identical trajectory (13/17/22/27/32 nodes), <strong>verdicts byte-identical to A</strong>, wall 2.3 s</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">B2</td>
+<td style="text-align: left;">same n_dof</td>
+<td style="text-align: left;">DIR-055B twin harness (serial vs parallel pool, FirstK)</td>
+<td style="text-align: left;">serial ≡ parallel <strong>exact</strong> (nodes, verdicts, eigenvalue rel-diff 0.0)</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">C</td>
+<td style="text-align: left;">n_dof = 6576 (<code>--target-n-dof 5954</code>, dissertation scale), L≤4</td>
+<td style="text-align: left;"><code>DiskSpillCold</code>, 4 h wall cap, 16 GB RSS budget</td>
+<td style="text-align: left;"><strong>L4 completed within budget</strong> — no sentinel: 33 nodes, <strong>wall 5.7 s, peak RSS 131 MB, 0 evictions, 0 bytes spilled</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The headline of the re-run is that the §4.4 problem, at its true spectral scale, is <strong>small</strong>: 32 nodes at laptop scale, 33 at dissertation scale, and the store never evicts. The bounded-resource machinery (DiskSpillCold, sentinels, RSS budgets) still stands as engineering, but at the faithful window it is never stressed — the pre-fix campaign’s memory drama was the mass bug.</p>
+<hr>
+<section id="rom-error-at-6d-held-out-table-and-soundness-curve" class="level2">
+<h2 class="anchored" data-anchor-id="rom-error-at-6d-held-out-table-and-soundness-curve">ROM error at 6D — held-out table and soundness curve</h2>
+<p>32 held-out µ (seeded, uniform in the box) evaluated against a dense in-window FE truth at each point (<code>rom_error_table_6d.csv</code>). On the <strong>lowest-20 window modes</strong> — the like-for-like gauge for the DIR-053 ceilings, which were pinned on the lowest eigenpairs —</p>
+<blockquote class="blockquote">
+<p>max eigenvalue rel-err <strong>1.1·10⁻¹</strong>, max subspace angle <strong>1.1·10⁻¹ rad</strong> — a <strong>breach</strong> of the DIR-053 ceilings (2·10⁻³ / 3·10⁻²) at the deepest fill levels; window coverage stays 0.91–1.0 and no query misses the window.</p>
+</blockquote>
+<p>This breach is a genuine, expected consequence of the faithful window and the central ROM finding of the re-run. In the pre-fix campaign a Window snapshot carried <strong>~380 eigenpairs</strong>, so even an 8-node nearest-neighbour basis spanned a near-complete subspace and the lowest-20 error sat at the accuracy floor (10⁻⁹–10⁻⁵) for <em>every</em> fill level. At the true window a snapshot carries only <strong>~10 modes</strong>, so the nearest-8 Galerkin pool is a genuinely thin basis: the RMS lowest-20 error grows with depth (4·10⁻³ at L0 → 1.9·10⁻² at L4) as refinement pushes queries into pockets the sparse pool interpolates less well. Coverage and window-completeness stay high throughout — the breach is <strong>basis-thinness, not a missed window</strong>.</p>
+<p>Two clarifications keep this honest. First, the DIR-053 ceiling itself is <strong>unaffected</strong>: it is a FirstK/full-basis measurement (<code>test_rom_6d</code>, lowest-6 eigenpairs with a complete per-node block), and DIR-112 re-confirmed it unchanged on the corrected operator. The gauge that breaches here is the campaign’s <em>Window-snapshot</em> ROM, a different and harder object. Second, the <strong>full-window</strong> columns of the table compare mode-by-mode past the coverage limit and misalign once modes are missing; they are labelled coverage-limited, not treated as eigenvalue error.</p>
+<p><img src="../figures/elasticity-4-4/rom-error-6d.png" class="img-fluid"></p>
+<p><strong>A campaign note on the shipped N-D basis pool.</strong> The surrogate scored here is a <strong>Galerkin window ROM</strong> (it projects <code>K(µ)</code>, <code>M(µ)</code> onto snapshot eigenvectors and does a small eigensolve), <em>not</em> the dissertation’s §4.4.5 hat interpolation of stored eigenvalues — a different object with a different memory premise; see the <a href="../examples/elasticity-4-4-evidence.html#strand-1-you-can-still-look">evidence page callout</a> and <code>DVG-SURR-01</code> for why the ROM (a DIR-110 feasibility carry-forward) stands in here rather than the faithful hat surrogate. The table uses a bounded nearest-8 Galerkin pool with rank-revealing M(µ)-orthonormalisation (<code>scripts/rom_error_table_6d.py</code>), not the shipped <code>evaluate_rom</code> N-D pool rule (nearest <code>min(2^d, 32)</code> nodes). At the faithful window the shipped rule is no longer <em>infeasible</em> (a ~10-mode snapshot × 32 nodes is a manageable ~320-column block, unlike the pre-fix ~12k), but it is now <em>inaccurate</em> — a thin per-node block means the pool must reach further for rank, and the breach above is the symptom. Redesigning the pool rule for the true §4.4 window (more nodes, or a region-aware interface basis) is follow-up work recorded alongside DIR-111.</p>
+</section>
+<section id="exact-p2-mesh-faithful-convergence-dir-122" class="level2">
+<h2 class="anchored" data-anchor-id="exact-p2-mesh-faithful-convergence-dir-122">Exact-P2 mesh-faithful convergence (DIR-122)</h2>
+<p>Everything above runs on the rebuild’s <strong>structured P1</strong> <code>l_shape_mesh</code>. The DIR-117/118/119 parity arc removed that last confound by building the operator on MATLAB’s <strong>exact P2 mesh</strong> — <code>make_l_shape_6d_faithful_mesh</code> (<code>Elasticity2D.from_mesh</code> on the imported <code>generateMesh(Hmax=0.1)</code> mesh + P2 vector element, n_dof = 5870; DIR-119 matched its window eigenvalues to MATLAB to 1.8·10⁻¹³) — but only ever ran a <strong>capped 2-level parity probe</strong> on it. DIR-122 runs the adaptive greedy to <strong>natural convergence</strong> on that operator, single process, via the new opt-in flag:</p>
+<div class="sourceCode" id="cb1"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/reproduce_4_4.py <span class="at">--operator</span> mesh <span class="at">--max-levels</span> 15 <span class="at">--fixed-v0</span> <span class="dt">\</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">--output-dir</span> tests/artifacts/dir_122 <span class="at">--csv-name</span> elasticity_4_4_mesh.csv</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p>(<code>--operator</code> defaults to <code>structured</code> — the DIR-030/113 path is byte-identical; <code>mesh</code> bakes in the faithful config so <code>--lame-mode/--clamp/--target-n-dof</code> are ignored-with-a-note.)</p>
+<blockquote class="blockquote">
+<p>The run <strong>converges of its own accord at level 7 with 47 nodes</strong> (<code>ran_out=False</code>, flagged edges 13→…→3→<strong>0</strong>), in <strong>7.3 s / 0.14 GB peak RSS / 0 evictions</strong>.</p>
+</blockquote>
+<p>This answers the campaign’s open question: the exact-P2 geography is <strong>not</strong> the structured-P1 one. The faithful DIR-113 run converged at <strong>L4 / 32 nodes</strong>; the sharper P2 discretisation refines <strong>two levels deeper and places 47 nodes</strong> (trajectory 13/17/22/28/34/39/44/47). The grid is denser, not merely a relabel of the P1 grid — pinned in <code>tests/test_dir_122_mesh_campaign.py</code>.</p>
+<p><strong>ROM accuracy on the converged grid</strong> (<code>rom_error_table_6d.py --operator mesh</code>, 32 held-out µ, lowest-20 gauge, fixed-<code>v0</code> dense truth):</p>
+<blockquote class="blockquote">
+<p>max eigenvalue rel-err <strong>0.11</strong>, <strong>median 5.8·10⁻³</strong>, max subspace angle <strong>0.126 rad</strong>, window coverage <strong>0.99</strong> (no query misses the window) — a <strong>breach</strong> of the DIR-053 ceilings (2·10⁻³ / 3·10⁻²), exactly the basis-thinness finding above, now measured on the exact-P2 operator.</p>
+</blockquote>
+<p>The soundness curve does <strong>not</strong> keep falling with grid fill: it plateaus at <strong>~2.2·10⁻² RMS by L4</strong> and holds flat through L7. Adding nodes past L4 tightens the grid but cannot close the residual — it is the <strong>near-degenerate eigenvector-gauge</strong> ceiling DIR-120 root-caused (the converged grid packs modes densely near the top of the window, where the eigenvectors are defined only up to rotation), not under-resolution. The median stays modest; a handful of near-degenerate query points drive the max. This is measured and pinned, not transplanted from the 1D/2D <code>1e-4</code> ceiling. See <a href="../methodology-unpublished.html">affine parameter-assembly</a> for why the per-µ solves are cheap enough to make a 47-node adaptive run finish in seconds.</p>
+</section>
+<section id="faithful-full-scale-run-past-matlabs-l2-wall-dir-124" class="level2">
+<h2 class="anchored" data-anchor-id="faithful-full-scale-run-past-matlabs-l2-wall-dir-124">Faithful full-scale run past MATLAB’s L2 wall (DIR-124)</h2>
+<p>DIR-122 above runs the exact-P2 operator with the rebuild’s <strong>own native</strong> adaptive path — the 13-point sparse seed + edge-bisection — and converges cheaply at L7/47 nodes. DIR-124 runs the <em>other</em> experiment the whole DIR-117/118/119 arc was built for: <strong>the MATLAB computation itself</strong> — the dissertation’s <strong><code>3^d</code> tensor seed</strong> (729 points at d=6, <code>seed_tensor_lattice</code>), MATLAB’s <strong><code>mirror_bracket</code></strong> omnidirectional spawn, the <strong>ω-scale</strong> verdict, the <strong>p-box</strong> (<code>p ∈ [0.2,1]×[0.2,0.4]³</code>, <code>E = 100·p</code>), and the frozen §4.4 thresholds (<code>t_pi=0.57</code>, <code>t_lambda=0.03</code>, <code>t_c=0.1</code>, squared Π) — run <strong>past level 2</strong>, the level MATLAB dies at (8376 points, 54 min, then an unbounded-eigenvector OOM). The seed is a first-class flag (<code>--seed {tensor,sparse}</code> / <code>--knots-per-axis</code>, default the <code>3^d</code> tensor); the sparse seed is a declared alternative, never a silent substitution. <code>mirror_bracket</code> rejects region decomposition and the parallel pool by construction, so this is <strong>single-process</strong> — the only bound is the store.</p>
+<div class="sourceCode" id="cb2"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/dir_124_faithful_campaign.py <span class="at">--max-levels</span> 7 <span class="dt">\</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">--max-active-mb</span> 2048 <span class="at">--cold-disk-dir</span> <span class="op">&lt;</span>scratch<span class="op">&gt;</span>/spill <span class="at">--cache-dir</span> <span class="op">&lt;</span>scratch<span class="op">&gt;</span>/cache <span class="dt">\</span></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">--output-dir</span> tests/artifacts/dir_124 <span class="at">--peak-rss-budget-mb</span> 12000 <span class="at">--rom-queries</span> 32</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong>The faithful campaign does not converge at a laptop-feasible scale — and that is the result.</strong> The grid grows as a steady power law (nodes ∝ level^1.40, R²=0.998) with the flagged-edge count <em>rising</em> at every level, never turning over:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">level</th>
+<th style="text-align: right;">0</th>
+<th style="text-align: right;">1</th>
+<th style="text-align: right;">2</th>
+<th style="text-align: right;">3</th>
+<th style="text-align: right;">4</th>
+<th style="text-align: right;">5</th>
+<th style="text-align: right;">6</th>
+<th style="text-align: right;">7</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">nodes</td>
+<td style="text-align: right;">729</td>
+<td style="text-align: right;">1640</td>
+<td style="text-align: right;">3001</td>
+<td style="text-align: right;">4663</td>
+<td style="text-align: right;">6392</td>
+<td style="text-align: right;">8421</td>
+<td style="text-align: right;">10649</td>
+<td style="text-align: right;"><strong>12702</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">flagged edges</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">911</td>
+<td style="text-align: right;">2134</td>
+<td style="text-align: right;">3453</td>
+<td style="text-align: right;">4559</td>
+<td style="text-align: right;">5602</td>
+<td style="text-align: right;">6596</td>
+<td style="text-align: right;">7348</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">active tier (MiB)</td>
+<td style="text-align: right;">356</td>
+<td style="text-align: right;">776</td>
+<td style="text-align: right;">1437</td>
+<td style="text-align: right;">2047</td>
+<td style="text-align: right;">2048</td>
+<td style="text-align: right;">2048</td>
+<td style="text-align: right;">2048</td>
+<td style="text-align: right;">2048</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">evictions</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">540</td>
+<td style="text-align: right;">2400</td>
+<td style="text-align: right;">4589</td>
+<td style="text-align: right;">6990</td>
+<td style="text-align: right;"><strong>9155</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">peak RSS (MiB)</td>
+<td style="text-align: right;">487</td>
+<td style="text-align: right;">960</td>
+<td style="text-align: right;">1709</td>
+<td style="text-align: right;">2431</td>
+<td style="text-align: right;">2492</td>
+<td style="text-align: right;">2525</td>
+<td style="text-align: right;">2576</td>
+<td style="text-align: right;"><strong>2613</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The L0–L3 prefix (729→1640→3001→4663) <strong>bit-matches</strong> the DIR-119 exact-mesh 2-level parity probe and its own independent growth smoke — the faithful setup is deterministic under <code>fixed_v0</code>.</p>
+<blockquote class="blockquote">
+<p><strong>This is the rebuild’s entire reason to exist, measured.</strong> The MATLAB original OOMs here because it accumulates eigenvectors without bound. The rebuild’s bounded <code>SnapshotStore</code> turns the low-rank premise into an <em>enforced</em> invariant: the LRU active tier <strong>clamps at its 2 GB cap from level 4 on</strong>, the cold tier <strong>spills 2.4 GB across 9155 evictions to disk</strong>, and <strong>peak RSS holds ~2.6 GB flat while the grid triples</strong> (4663→12702 nodes). The run reaches <strong>level 7 / 12702 nodes in 25 min, single process, with a clean <code>LEVEL_7_COMPLETED</code> and zero <code>StoreOverflow</code></strong> — five levels past MATLAB’s wall, no OS OOM-kill.</p>
+</blockquote>
+<p>As a number: the active-byte growth exponent is <strong>0.87</strong> — <em>sub-linear</em>, decoupled from the node-count exponent 1.40, because the cap does its job. The cold-tier rank keeps climbing (5.3k→105k stored eigenvectors, ≈11 modes per evicted snapshot), so the eigenvector <em>family</em> is <strong>not</strong> staying low-rank as the grid grows at this faithful scale — the premise holds only because the bounded store spills the surplus to disk rather than RAM. Either way, the faithful computation runs to a reported depth in bounded memory; a deeper level is a wall-time / disk-budget choice, not a memory-safety one.</p>
+<p><strong>ROM accuracy on the L7 grid</strong> (<code>window_rom_predict</code>, 32 held-out µ in the p-box, pool 2, fixed-<code>v0</code> dense truth):</p>
+<blockquote class="blockquote">
+<p>max eigenvalue rel-err <strong>9.1·10⁻²</strong>, <strong>median 5.3·10⁻³</strong>; max subspace angle <strong>0.162 rad</strong>, median <strong>4.1·10⁻²</strong> — the same thin-Window-basis ceiling as the DIR-113/122 runs (a bounded ~8-mode snapshot is not a near-complete basis in this dense near-degenerate spectrum), measured on the faithful full-scale grid, not transplanted.</p>
+</blockquote>
+<p>Committed artifacts under <code>tests/artifacts/dir_124/</code> (run report + telemetry CSV, ROM error table + summary; the 2.4 GB disk-spill cache is scratch-only, not committed); pinned by <code>tests/test_dir_124_faithful_campaign.py</code> — the exact trajectory, the bounded-memory invariants (active cap, disk spill, flat RSS), the growth-fit exponents, and the ROM bands, plus a cheap live sparse-L1 re-run that re-derives the faithful config deterministically.</p>
+</section>
+<section id="deep-continuation-does-it-converge-and-does-deeper-get-better-dir-125" class="level2">
+<h2 class="anchored" data-anchor-id="deep-continuation-does-it-converge-and-does-deeper-get-better-dir-125">Deep continuation — does it converge, and does deeper get better? (DIR-125)</h2>
+<p>DIR-124 above stopped at a <strong>chosen</strong> <code>--max-levels 7</code> cap with every real budget ~80 % unused, so its “grows ∝ level^1.40, does not converge” was an <em>extrapolation</em> from the pre-saturation ramp, and its ROM number was a single L7 point. DIR-125 removes both limits: the <strong>same driver, same faithful config</strong>, run at <code>--max-levels 100</code> with generous laptop-sized budgets (18 GB disk, 180 min wall, 12 GB RSS) so the stop is real — and a <strong>per-level ROM soundness curve</strong> (<code>scripts/dir_125_soundness.py</code>) scoring the grid-as-of-level-L for every L against fixed-<code>v0</code> dense truth.</p>
+<div class="sourceCode" id="cb3"><pre class="sourceCode bash code-with-copy"><code class="sourceCode bash"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/dir_124_faithful_campaign.py <span class="at">--max-levels</span> 100 <span class="dt">\</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a>    <span class="at">--max-active-mb</span> 2048 <span class="at">--cold-disk-dir</span> <span class="op">&lt;</span>scratch<span class="op">&gt;</span>/spill <span class="at">--cache-dir</span> <span class="op">&lt;</span>scratch<span class="op">&gt;</span>/cache <span class="dt">\</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a>    <span class="at">--cold-max-mb</span> 18000 <span class="at">--peak-rss-budget-mb</span> 12000 <span class="at">--max-wall-time-min</span> 180 <span class="dt">\</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a>    <span class="at">--rom-queries</span> 0 <span class="at">--output-dir</span> tests/artifacts/dir_125 <span class="at">--csv-name</span> convergence_run.csv</span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/dir_125_soundness.py <span class="at">--cache-dir</span> <span class="op">&lt;</span>scratch<span class="op">&gt;</span>/cache <span class="dt">\</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a>    <span class="at">--n-queries</span> 32 <span class="at">--pool-size</span> 2 <span class="at">--out-dir</span> tests/artifacts/dir_125</span></code><button title="Copy to Clipboard" class="code-copy-button"><i class="bi"></i></button></pre></div>
+<p><strong>Result 1 — it converges. The faithful campaign reaches a natural fixed point at L23 / 21867 nodes, bounded, in 55 min — overturning DIR-124’s L7 “grows-forever” extrapolation.</strong> The <code>mirror_bracket</code> active frontier empties (its termination condition, <code>mirror_bracket.py</code>): per-level additions peak at L6 then decay monotonically to near-zero, so the grid <em>turns over</em> rather than growing without bound. The stop is <strong>natural</strong> (<code>ran_out=False</code>, below the cap) — <strong>not</strong> a wall/disk/RSS budget and <strong>not</strong> the level cap:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+<col style="width: 9%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">level</th>
+<th style="text-align: right;">6</th>
+<th style="text-align: right;">7</th>
+<th style="text-align: right;">8</th>
+<th style="text-align: right;">10</th>
+<th style="text-align: right;">12</th>
+<th style="text-align: right;">15</th>
+<th style="text-align: right;">18</th>
+<th style="text-align: right;">20</th>
+<th style="text-align: right;">22</th>
+<th style="text-align: right;">23</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">nodes</td>
+<td style="text-align: right;">10649</td>
+<td style="text-align: right;">12702</td>
+<td style="text-align: right;">14922</td>
+<td style="text-align: right;">18588</td>
+<td style="text-align: right;">20162</td>
+<td style="text-align: right;">21212</td>
+<td style="text-align: right;">21686</td>
+<td style="text-align: right;">21793</td>
+<td style="text-align: right;">21853</td>
+<td style="text-align: right;"><strong>21867</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">added</td>
+<td style="text-align: right;">2228</td>
+<td style="text-align: right;">2053</td>
+<td style="text-align: right;">2220</td>
+<td style="text-align: right;">1556</td>
+<td style="text-align: right;">541</td>
+<td style="text-align: right;">257</td>
+<td style="text-align: right;">100</td>
+<td style="text-align: right;">44</td>
+<td style="text-align: right;">27</td>
+<td style="text-align: right;"><strong>14</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">flagged edges</td>
+<td style="text-align: right;">6596</td>
+<td style="text-align: right;">7348</td>
+<td style="text-align: right;">7828</td>
+<td style="text-align: right;">8274</td>
+<td style="text-align: right;">8417</td>
+<td style="text-align: right;">8521</td>
+<td style="text-align: right;">8563</td>
+<td style="text-align: right;">8573</td>
+<td style="text-align: right;">8578</td>
+<td style="text-align: right;">8578</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">peak RSS (MiB)</td>
+<td style="text-align: right;">2582</td>
+<td style="text-align: right;">2622</td>
+<td style="text-align: right;">2654</td>
+<td style="text-align: right;">2715</td>
+<td style="text-align: right;">2737</td>
+<td style="text-align: right;">2755</td>
+<td style="text-align: right;">2792</td>
+<td style="text-align: right;">2805</td>
+<td style="text-align: right;">2817</td>
+<td style="text-align: right;"><strong>2818</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The revised growth exponent over the <strong>full</strong> L0–L23 trajectory is <strong>nodes ∝ level^1.08</strong> (R²=0.94), not L7’s 1.40 — the earlier number was the ramp, not the asymptote. The L0–L7 prefix bit-matches DIR-124 exactly (same <code>fixed_v0</code> faithful setup, only the caps/budgets differ).</p>
+<blockquote class="blockquote">
+<p><strong>Converges, bounded, at laptop scale — every budget unused.</strong> Peak RSS <strong>4.1 GB</strong> (budget 12 GB), wall <strong>55 min</strong> (budget 180 min), disk spill <strong>5.2 GB</strong> (cap 18 GB), active tier clamped flat at its <strong>2 GB</strong> cap the whole way, <strong>zero <code>StoreOverflow</code>, no OS OOM-kill</strong> — 16 levels past DIR-124’s L7 and 21 past MATLAB’s L2 OOM wall. The honest nuance: termination is by <strong>frontier / dyadic-lattice saturation</strong>, not full certification — <strong>8578 edges remain flagged REFINE</strong> at halt (the near-degenerate eigenvector gauge, DIR-120, keeps re-flagging the dense upper window), but the <code>mirror_bracket</code> spawn can no longer place a new node to act on them, so the adaptive loop stops.</p>
+</blockquote>
+<p><strong>Result 2 — deeper does <em>not</em> get better. ROM accuracy plateaus at the near-degenerate eigenvector-gauge ceiling by L2–L3, then is flat for 20 more levels</strong> (<code>window_rom_predict</code>, 32 held-out µ in the p-box, pool 2, lowest-6, fixed-<code>v0</code> dense truth):</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">level L</th>
+<th style="text-align: right;">0</th>
+<th style="text-align: right;">1</th>
+<th style="text-align: right;">2</th>
+<th style="text-align: right;">3</th>
+<th style="text-align: right;">7</th>
+<th style="text-align: right;">8</th>
+<th style="text-align: right;">15</th>
+<th style="text-align: right;">23</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">nodes</td>
+<td style="text-align: right;">729</td>
+<td style="text-align: right;">1640</td>
+<td style="text-align: right;">3001</td>
+<td style="text-align: right;">4663</td>
+<td style="text-align: right;">12702</td>
+<td style="text-align: right;">14922</td>
+<td style="text-align: right;">21212</td>
+<td style="text-align: right;">21867</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">rel-err median</td>
+<td style="text-align: right;">1.0e-2</td>
+<td style="text-align: right;">6.5e-3</td>
+<td style="text-align: right;">5.5e-3</td>
+<td style="text-align: right;">5.0e-3</td>
+<td style="text-align: right;">5.3e-3</td>
+<td style="text-align: right;">4.9e-3</td>
+<td style="text-align: right;">4.9e-3</td>
+<td style="text-align: right;"><strong>4.9e-3</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">rel-err <strong>max</strong></td>
+<td style="text-align: right;">1.7e-1</td>
+<td style="text-align: right;">9.1e-2</td>
+<td style="text-align: right;">9.1e-2</td>
+<td style="text-align: right;">9.1e-2</td>
+<td style="text-align: right;">9.1e-2</td>
+<td style="text-align: right;">9.1e-2</td>
+<td style="text-align: right;">9.1e-2</td>
+<td style="text-align: right;"><strong>9.1e-2</strong></td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">angle median (rad)</td>
+<td style="text-align: right;">4.2e-2</td>
+<td style="text-align: right;">3.8e-2</td>
+<td style="text-align: right;">2.1e-2</td>
+<td style="text-align: right;">1.9e-2</td>
+<td style="text-align: right;">2.0e-2</td>
+<td style="text-align: right;">2.0e-2</td>
+<td style="text-align: right;">2.0e-2</td>
+<td style="text-align: right;"><strong>2.0e-2</strong></td>
+</tr>
+</tbody>
+</table>
+<p>The entire gain is L0→L2 (median 1.0e-2 → 5.5e-3); from <strong>L8 the curve is bit-identical</strong> (median 4.856e-3, max 9.127e-2, angle 2.034e-2) even as the grid grows 14922→21867 nodes. The classifier’s verdict is <strong><code>plateau_at_gauge_ceiling</code></strong> (L0→L23 buys only 2.06×, and the best level is L8 — far from the deepest, the signature of a shallow-gain-then-flat plateau, not a convergent improvement). The max rel-err is a <strong>fixed ceiling from L1 on</strong> (9.1e-2, one held-out µ whose top window mode is gauge-degenerate — DIR-120), never resolved by grid fill. The mechanism is direct: the deep continuation refines only the near-degenerate flagged regions high in the dense spectrum, which are <em>not</em> near generic held-out µ, so the pool-2 basis for a random query stops changing once its neighbourhood is filled (~L8). The L7 point cross-checks DIR-124’s independently-computed single point exactly (median 5.3e-3, max 9.1e-2).</p>
+<p>Committed artifacts under <code>tests/artifacts/dir_125/</code> (convergence run report + CSV; per-level soundness curve JSON/CSV/figure + per-query CSV; the 6.5 GB run cache and 5.2 GB spill are scratch-only, not committed); pinned by <code>tests/test_dir_125_deep_convergence.py</code> — the natural-not-budget stop, the turn-over (additions decay + flagged plateau), the bounded-memory invariants, the plateau verdict + flat-ceiling tail, the DIR-124 L7 cross-check, and live pure plumbing (query determinism, level truncation, the verdict classifier). MATLAB parity is <strong>out of scope</strong> — there is no MATLAB reference past L2 (the DIR-117 probe’s <code>lev_max=2</code>); the quality claim is vs dense ground truth only.</p>
+</section>
+<section id="certification-telemetry-the-independent-inertia-certificate" class="level2">
+<h2 class="anchored" data-anchor-id="certification-telemetry-the-independent-inertia-certificate">Certification telemetry — the independent inertia certificate</h2>
+<p>The a-posteriori matrix Π and the DIR-088 mass budget certify the <em>computed</em> subspaces; <code>window_count</code> (dense LDLᵀ Sylvester inertia, DIR-089) counts the <em>true</em> in-window eigenvalues from the assembled K(µ), M(µ) alone — an independent certificate that sees modes the subspace side cannot. Over <strong>all 31 tested edges</strong> of the Stage-A run (endpoints + un-solved midpoints, <code>scripts/inertia_certificate_6d.py</code>):</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">count</th>
+<th style="text-align: right;">value</th>
+<th style="text-align: left;">reading</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><code>endpoint_mismatch</code></td>
+<td style="text-align: right;"><strong>0</strong></td>
+<td style="text-align: left;"><code>solve_window</code> returned the complete in-window set at every node</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>mid_bump</code></td>
+<td style="text-align: right;"><strong>0</strong></td>
+<td style="text-align: left;">no mode present at a midpoint but at neither endpoint — no grid-invisible window entry</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><code>cross_edge_delta</code></td>
+<td style="text-align: right;">16</td>
+<td style="text-align: left;">the in-window count changes across half the edges (a ~10-mode window is far quieter than the pre-fix ~380) — all surfaced to the matching layer</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><code>cert_with_entry</code></td>
+<td style="text-align: right;">12</td>
+<td style="text-align: left;">count changes on certified edges: surplus bands the Algorithm-6 <code>t_c</code> gate certified-and-dropped (Q14 territory, not a blind spot given <code>endpoint_mismatch = 0</code>)</td>
+</tr>
+</tbody>
+</table>
+<p>The DIR-089 verdict — the node-local window solve is complete and the only genuinely-uncaught category (<code>mid_bump</code>) is empty — <strong>holds unchanged on the sparser faithful window</strong>, exactly as DIR-112 predicted.</p>
+</section>
+<section id="domain-decomposition-at-6d-tier-1-rank-savings" class="level2">
+<h2 class="anchored" data-anchor-id="domain-decomposition-at-6d-tier-1-rank-savings">Domain decomposition at 6D — Tier 1 (rank savings)</h2>
+<p>The first rendered view of the DIR-036 decomposition on the real 6D problem (Stage B1). The split criterion still fires: <strong>5 splits</strong>, 4 freezes, peak <strong>6 subdomains</strong>, and the Tier-1 headline —</p>
+<blockquote class="blockquote">
+<p>single-store POD rank <strong>35</strong> vs max per-region rank <strong>22</strong> (−13, a <strong>37 % reduction</strong>), the 6D analogue of the 2D page’s 31 → 23.</p>
+</blockquote>
+<p><img src="../figures/elasticity-4-4/rank-savings-6d.png" class="img-fluid"></p>
+<p><img src="../figures/elasticity-4-4/region-timeline-6d.png" class="img-fluid"></p>
+<p>The absolute ranks are small (35, not the pre-fix 1311) because the faithful grid is small; the <em>fractional</em> saving (−37 %) survives, so decomposition still buys the same relative relief at the true scale.</p>
+<p>The lower panel is the 6D measurement of the <strong>interface budget</strong> (fraction of nodes on region boundaries — the Q13 scalability instrument). Here it climbs to <strong>0.31</strong> at L4 — it does <strong>not</strong> stay ≤ 0.1 as the pre-fix 166-node grid did. This is an honest scalability caveat, not a regression: the budget is a <em>ratio</em>, and on a sparse 32-node grid a larger fraction of nodes necessarily sit on the 6 subdomain boundaries. The concern the instrument exists to watch — boundary duplication growing faster than the interior — is best judged on a <em>denser</em> grid; at the faithful §4.4 scale the interior is simply too small to dilute the boundary.</p>
+</section>
+<section id="domain-decomposition-at-6d-tier-2-measured-parallel-speedup" class="level2">
+<h2 class="anchored" data-anchor-id="domain-decomposition-at-6d-tier-2-measured-parallel-speedup">Domain decomposition at 6D — Tier 2 (measured parallel speedup)</h2>
+<p>The equivalence gate stands and is now <strong>cleaner</strong>; the wall-clock story inverts:</p>
+<ol type="1">
+<li><strong>Strict equivalence gate at campaign n_dof</strong> (DIR-055B harness, FirstK config): serial and 14-worker-pool runs produce <strong>identical nodes and verdicts and eigenvalue max-rel-diff 0.0</strong> at n_dof = 1846. The measured per-region barrier-model speedup is <strong>1.82×</strong> against the equal-cost projection’s 1.08×, but the <strong>raw end-to-end wall-clock is 0.76×</strong> — overhead-bound (serial 0.40 s vs parallel 0.52 s).</li>
+<li><strong>Raw campaign wall-clock</strong> (Window config, Stage A vs B1): <strong>1.6 s → 2.3 s</strong> — the parallel pool is <em>slower</em> than serial on the faithful operator.</li>
+</ol>
+<p>The reason is direct: at the faithful window a solve returns ~10 modes and costs milliseconds, so process spawn / pickle / barrier overhead dominates the 14 workers. The pre-fix 2.43× speedup was real but depended entirely on the fake window’s ~380-mode heavy solves. <strong>At the true §4.4 scale the parallel pool buys nothing in wall-clock</strong> — the honest conclusion, and a reversal of the pre-fix page.</p>
+<p>One further faithful improvement: the pre-fix page carried a caveat that under the Window config the parallel run flipped <strong>2 of ~124k band verdicts</strong> (REFINE ↔︎ CERTIFIED, a BLAS reduction-order effect). On the sparse faithful window <strong>that flip is gone</strong> — Stage A, the serial <code>--regions</code> twin, and the 14-worker parallel run are all verdict-byte-identical. The sparse window carries almost no near-threshold bands for last-ulp noise to tip.</p>
+</section>
+<section id="mesh-independence" class="level2">
+<h2 class="anchored" data-anchor-id="mesh-independence">Mesh independence</h2>
+<p>Three mesh resolutions, one configuration (<code>mesh_independence_6d.csv</code>):</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">n_dof</th>
+<th style="text-align: left;">nodes per level</th>
+<th style="text-align: right;">certified fraction</th>
+<th style="text-align: right;">wall</th>
+<th style="text-align: right;">peak RSS</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">846</td>
+<td style="text-align: left;">13, 17, 22, 27, 33</td>
+<td style="text-align: right;">0.458</td>
+<td style="text-align: right;">0.9 s</td>
+<td style="text-align: right;">88 MB</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1846</td>
+<td style="text-align: left;">13, 17, 22, 27, 32</td>
+<td style="text-align: right;">0.421</td>
+<td style="text-align: right;">1.6 s</td>
+<td style="text-align: right;">96 MB</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">6576</td>
+<td style="text-align: left;">13, 17, 22, 28, 33</td>
+<td style="text-align: right;">0.438</td>
+<td style="text-align: right;">5.7 s</td>
+<td style="text-align: right;">131 MB</td>
+</tr>
+</tbody>
+</table>
+<p>The refinement <strong>geography is now mesh-independent</strong>: identical seed and early levels (13/17/22 at L0–L2 everywhere) and a final count of ~33/32/33 across an 8× span in n_dof — not the pre-fix 145 → 166 → 193 that <em>grew</em> with the mesh. That growth was itself a symptom of the fake operator: a finer mesh resolved more of the ~380-mode window’s spurious content, so more band pairs became testable and more edges flagged. On the corrected operator the parameter-space geography decouples from the spatial mesh, as it should — the certified fraction is flat at ~0.44 rather than falling from 0.47 to 0.23. The level cap (<code>ran_out=True</code> at every scale) still binds before the geographies could diverge.</p>
+<p><img src="../figures/elasticity-4-4/mesh-independence-6d.png" class="img-fluid"></p>
+</section>
+<section id="bounded-resource-record-dissertation-scale-in-seconds" class="level2">
+<h2 class="anchored" data-anchor-id="bounded-resource-record-dissertation-scale-in-seconds">Bounded-resource record — dissertation scale in seconds</h2>
+<p>The last full-scale run of the original MATLAB predates this rebuild’s memory work and was killed by the OS. The pre-fix rebuild campaign answered that at the fake scale with an overnight 7 h 26 min / 9.2 GB / 5.8 GB-spilled Stage C. On the corrected operator the record is anticlimactic and that is the point: the <strong>full §4.4 problem at n_dof = 6576 through four refinement levels (33 nodes) in 5.7 s on a laptop</strong>, peak RSS 131 MB against the 16 GB budget, with the DIR-035 <code>DiskSpillCold</code> tier wired but <strong>never touched</strong> (0 evictions, 0 bytes spilled) — zero overflow, zero sentinel, <code>LEVEL_4_COMPLETED</code>. The wall-time and RSS budgets and clean sentinel stops all still stand as engineering, but the faithful §4.4 problem never approaches them. Neither wall time nor memory is a binding constraint at the true 6D scale; the pre-fix campaign’s entire resource narrative was an artifact of the mass bug (<code>MEMORY-OOM-ANALYSIS</code>).</p>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+  const viewSource = window.document.getElementById('quarto-view-source') ||
+                     window.document.getElementById('quarto-code-tools-source');
+  if (viewSource) {
+    const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+    viewSource.addEventListener("click", function(e) {
+      if (sourceUrl) {
+        // rstudio viewer pane
+        if (/\bcapabilities=\b/.test(window.location)) {
+          window.open(sourceUrl);
+        } else {
+          window.location.href = sourceUrl;
+        }
+      } else {
+        const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+        modal.show();
+      }
+      return false;
+    });
+  }
+  function toggleCodeHandler(show) {
+    return function(e) {
+      const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+      for (let i=0; i<detailsSrc.length; i++) {
+        const details = detailsSrc[i].parentElement;
+        if (show) {
+          details.open = true;
+        } else {
+          details.removeAttribute("open");
+        }
+      }
+      const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+      const fromCls = show ? "hidden" : "unhidden";
+      const toCls = show ? "unhidden" : "hidden";
+      for (let i=0; i<cellCodeDivs.length; i++) {
+        const codeDiv = cellCodeDivs[i];
+        if (codeDiv.classList.contains(fromCls)) {
+          codeDiv.classList.remove(fromCls);
+          codeDiv.classList.add(toCls);
+        } 
+      }
+      return false;
+    }
+  }
+  const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+  if (hideAllCode) {
+    hideAllCode.addEventListener("click", toggleCodeHandler(false));
+  }
+  const showAllCode = window.document.getElementById("quarto-show-all-code");
+  if (showAllCode) {
+    showAllCode.addEventListener("click", toggleCodeHandler(true));
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="sourceCode" id="cb4" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "§4.4 6D campaign — quality demonstration at scale"</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>Every quality instrument the rebuild ships — ROM error gauges (DIR-003/053),</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>the a-posteriori certification pipeline with mass-budget telemetry (DIR-088),</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>the inertia window-entry certificate (DIR-089), dynamic domain decomposition</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>(DIR-036) with measured parallel execution (DIR-055B/C), and the bounded-</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>resource store (DIR-030/032/035) — was validated on 1D/2D problems or 6D</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>smoke scale. This page is the first time they are exercised **together** on</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>the dissertation's §4.4 problem: 2D **plane-strain** elasticity on the L-shape</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a>Ω = Ω₁∪Ω₂∪Ω₃ with per-face (Eᵢ, νᵢ), a **6-dimensional** parameter box</span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">10,100</span><span class="co">]</span>³×<span class="co">[</span><span class="ot">0.1,0.4</span><span class="co">]</span>³ (interleaved), clamped on Edges 1 &amp; 2 (base + top-arm</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>end), Window mode over the natural-frequency band ω ∈ <span class="co">[</span><span class="ot">0, 12.5</span><span class="co">]</span> i.e.</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>λ ∈ <span class="co">[</span><span class="ot">0, 156.25</span><span class="co">]</span>, dissertation thresholds t_π = 0.57, t_λ = 0.03, t_c = 0.1.</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a><span class="fu">## Provenance — these numbers are the DIR-113 re-run on the corrected operator</span></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a>An earlier version of this page (DIR-110) reported this campaign on a</span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a>**fake-soft operator**: <span class="in">`Elasticity2D`</span> assembled the vector mass with <span class="in">`ddot`</span></span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>(matrix double-contraction) instead of <span class="in">`dot`</span>, giving <span class="in">`trace(M) ∝ n²`</span> and</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>crushing every eigenvalue <span class="in">`∝ h²`</span>, so the window <span class="co">[</span><span class="ot">0, 12</span><span class="co">]</span> on λ held **&gt;960</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a>spurious modes** where the dissertation tracks a handful of surfaces. **DIR-112</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>found and fixed the root cause** (deviation log</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">`elasticity-4-4-baseline-deviation-log.md`</span><span class="co">](elasticity-4-4-baseline-deviation-log.md)</span>,</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>rows 9–13): the mass bug plus two convention mismatches — the window filters</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a>the natural frequency ω = √λ (so on λ the faithful band is <span class="co">[</span><span class="ot">0, 156.25</span><span class="co">]</span>, not</span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">0, 12</span><span class="co">]</span>), and the physics is <span class="in">`modal-planestrain`</span> clamping only Edges 1 &amp; 2, not</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>plane stress with the whole boundary clamped. On the corrected + faithful</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>config (<span class="in">`make_l_shape_6d_faithful`</span>) the box midpoint holds **8 modes** —</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a>matching a headless MATLAB run of the frozen <span class="in">`ComputationalDomain6Dreal.m`</span> to</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a>~0.7 % on the first eight eigenvalues (P1-vs-P2).</span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a>**DIR-113 re-ran the entire campaign on the corrected operator**; every number</span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a>below is faithful and pinned by <span class="in">`tests/test_dir_113_artifacts.py`</span>. The pre-fix</span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a><span class="in">`tests/artifacts/dir_110/`</span> set is retained on disk as archived pre-fix data but</span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>is no longer rendered here. The scale-invariant sibling results held up exactly</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>as DIR-112 predicted: the DIR-053 ROM ceiling (a FirstK/full-basis measurement)</span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a>is unchanged, and the DIR-089 "stay-dense" inertia verdict survives on the now</span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>much sparser window.</span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>This page carries the campaign's *performance and self-consistency* story.</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>The **correctness case** — the five-strand evidence argument (slice views,</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a>inertia certificate, holonomy/ν-index consistency, sampled statistical audit,</span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>setup invariance) that replaces the 1D/2D branch-figure eyeball certificate —</span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>lives on its own page:</span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">**§4.4 6D campaign — the correctness evidence**</span><span class="co">](elasticity-4-4-evidence.qmd)</span>.</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>Everything below is **measured on committed artifacts**</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>(<span class="in">`tests/artifacts/dir_113/`</span>). The pre-fix campaign needed staged, budget-bounded</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a>overnight runs; on the corrected operator the whole campaign runs in **seconds**</span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>— the fake window's ~380–960 modes/node were the entire cost, and the true</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>window holds only **~8–20 modes/node** (Stage A: min 7, max 21, mean 10.6):</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a>| Stage | scale | config | outcome |</span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>|:--|:--|:--|:--|</span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a>| A | n_dof = 1846 (<span class="in">`--target-n-dof 1500`</span>), L≤4 | serial, single region, <span class="in">`--mass-telemetry`</span>, RunCache | L4 completed, <span class="in">`ran_out=True`</span>, **32 nodes, wall 1.6 s, peak RSS 96 MB, 0 evictions** |</span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a>| B1 | same scale | <span class="in">`--regions --parallel-workers 14 --fixed-v0`</span> | identical trajectory (13/17/22/27/32 nodes), **verdicts byte-identical to A**, wall 2.3 s |</span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a>| B2 | same n_dof | DIR-055B twin harness (serial vs parallel pool, FirstK) | serial ≡ parallel **exact** (nodes, verdicts, eigenvalue rel-diff 0.0) |</span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a>| C | n_dof = 6576 (<span class="in">`--target-n-dof 5954`</span>, dissertation scale), L≤4 | <span class="in">`DiskSpillCold`</span>, 4 h wall cap, 16 GB RSS budget | **L4 completed within budget** — no sentinel: 33 nodes, **wall 5.7 s, peak RSS 131 MB, 0 evictions, 0 bytes spilled** |</span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>The headline of the re-run is that the §4.4 problem, at its true spectral</span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>scale, is **small**: 32 nodes at laptop scale, 33 at dissertation scale, and</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a>the store never evicts. The bounded-resource machinery (DiskSpillCold,</span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a>sentinels, RSS budgets) still stands as engineering, but at the faithful window</span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>it is never stressed — the pre-fix campaign's memory drama was the mass bug.</span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a><span class="fu">## ROM error at 6D — held-out table and soundness curve</span></span>
+<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a>32 held-out µ (seeded, uniform in the box) evaluated against a dense in-window</span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a>FE truth at each point (<span class="in">`rom_error_table_6d.csv`</span>). On the **lowest-20 window</span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>modes** — the like-for-like gauge for the DIR-053 ceilings, which were pinned</span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>on the lowest eigenpairs —</span>
+<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; max eigenvalue rel-err **1.1·10⁻¹**, max subspace angle **1.1·10⁻¹ rad** —</span></span>
+<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; a **breach** of the DIR-053 ceilings (2·10⁻³ / 3·10⁻²) at the deepest fill</span></span>
+<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; levels; window coverage stays 0.91–1.0 and no query misses the window.</span></span>
+<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>This breach is a genuine, expected consequence of the faithful window and the</span>
+<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>central ROM finding of the re-run. In the pre-fix campaign a Window snapshot</span>
+<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a>carried **~380 eigenpairs**, so even an 8-node nearest-neighbour basis spanned a</span>
+<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a>near-complete subspace and the lowest-20 error sat at the accuracy floor</span>
+<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a>(10⁻⁹–10⁻⁵) for *every* fill level. At the true window a snapshot carries only</span>
+<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a>**~10 modes**, so the nearest-8 Galerkin pool is a genuinely thin basis: the</span>
+<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a>RMS lowest-20 error grows with depth (4·10⁻³ at L0 → 1.9·10⁻² at L4) as</span>
+<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a>refinement pushes queries into pockets the sparse pool interpolates less well.</span>
+<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a>Coverage and window-completeness stay high throughout — the breach is</span>
+<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a>**basis-thinness, not a missed window**.</span>
+<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a>Two clarifications keep this honest. First, the DIR-053 ceiling itself is</span>
+<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a>**unaffected**: it is a FirstK/full-basis measurement (<span class="in">`test_rom_6d`</span>, lowest-6</span>
+<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a>eigenpairs with a complete per-node block), and DIR-112 re-confirmed it</span>
+<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a>unchanged on the corrected operator. The gauge that breaches here is the</span>
+<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a>campaign's *Window-snapshot* ROM, a different and harder object. Second, the</span>
+<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a>**full-window** columns of the table compare mode-by-mode past the coverage</span>
+<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a>limit and misalign once modes are missing; they are labelled coverage-limited,</span>
+<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>not treated as eigenvalue error.</span>
+<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a><span class="al">![](../figures/elasticity-4-4/rom-error-6d.png)</span></span>
+<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a>**A campaign note on the shipped N-D basis pool.** The surrogate scored here is</span>
+<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>a **Galerkin window ROM** (it projects <span class="in">`K(µ)`</span>, <span class="in">`M(µ)`</span> onto snapshot</span>
+<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>eigenvectors and does a small eigensolve), *not* the dissertation's §4.4.5 hat</span>
+<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a>interpolation of stored eigenvalues — a different object with a different memory</span>
+<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a>premise; see the <span class="co">[</span><span class="ot">evidence page callout</span><span class="co">](elasticity-4-4-evidence.qmd#strand-1-you-can-still-look)</span></span>
+<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>and <span class="in">`DVG-SURR-01`</span> for why the ROM (a DIR-110 feasibility carry-forward) stands in</span>
+<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>here rather than the faithful hat surrogate. The table uses a bounded</span>
+<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>nearest-8 Galerkin pool with rank-revealing M(µ)-orthonormalisation</span>
+<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a>(<span class="in">`scripts/rom_error_table_6d.py`</span>), not the shipped <span class="in">`evaluate_rom`</span> N-D pool rule</span>
+<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a>(nearest <span class="in">`min(2^d, 32)`</span> nodes). At the faithful window the shipped rule is no</span>
+<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a>longer *infeasible* (a ~10-mode snapshot × 32 nodes is a manageable ~320-column</span>
+<span id="cb4-116"><a href="#cb4-116" aria-hidden="true" tabindex="-1"></a>block, unlike the pre-fix ~12k), but it is now *inaccurate* — a thin per-node</span>
+<span id="cb4-117"><a href="#cb4-117" aria-hidden="true" tabindex="-1"></a>block means the pool must reach further for rank, and the breach above is the</span>
+<span id="cb4-118"><a href="#cb4-118" aria-hidden="true" tabindex="-1"></a>symptom. Redesigning the pool rule for the true §4.4 window (more nodes, or a</span>
+<span id="cb4-119"><a href="#cb4-119" aria-hidden="true" tabindex="-1"></a>region-aware interface basis) is follow-up work recorded alongside DIR-111.</span>
+<span id="cb4-120"><a href="#cb4-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-121"><a href="#cb4-121" aria-hidden="true" tabindex="-1"></a><span class="fu">## Exact-P2 mesh-faithful convergence (DIR-122)</span></span>
+<span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-123"><a href="#cb4-123" aria-hidden="true" tabindex="-1"></a>Everything above runs on the rebuild's **structured P1** <span class="in">`l_shape_mesh`</span>. The</span>
+<span id="cb4-124"><a href="#cb4-124" aria-hidden="true" tabindex="-1"></a>DIR-117/118/119 parity arc removed that last confound by building the operator</span>
+<span id="cb4-125"><a href="#cb4-125" aria-hidden="true" tabindex="-1"></a>on MATLAB's **exact P2 mesh** — <span class="in">`make_l_shape_6d_faithful_mesh`</span></span>
+<span id="cb4-126"><a href="#cb4-126" aria-hidden="true" tabindex="-1"></a>(<span class="in">`Elasticity2D.from_mesh`</span> on the imported <span class="in">`generateMesh(Hmax=0.1)`</span> mesh + P2</span>
+<span id="cb4-127"><a href="#cb4-127" aria-hidden="true" tabindex="-1"></a>vector element, n_dof = 5870; DIR-119 matched its window eigenvalues to MATLAB to</span>
+<span id="cb4-128"><a href="#cb4-128" aria-hidden="true" tabindex="-1"></a>1.8·10⁻¹³) — but only ever ran a **capped 2-level parity probe** on it. DIR-122</span>
+<span id="cb4-129"><a href="#cb4-129" aria-hidden="true" tabindex="-1"></a>runs the adaptive greedy to **natural convergence** on that operator, single</span>
+<span id="cb4-130"><a href="#cb4-130" aria-hidden="true" tabindex="-1"></a>process, via the new opt-in flag:</span>
+<span id="cb4-131"><a href="#cb4-131" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-132"><a href="#cb4-132" aria-hidden="true" tabindex="-1"></a><span class="in">```bash</span></span>
+<span id="cb4-133"><a href="#cb4-133" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/reproduce_4_4.py <span class="at">--operator</span> mesh <span class="at">--max-levels</span> 15 <span class="at">--fixed-v0</span> <span class="dt">\</span></span>
+<span id="cb4-134"><a href="#cb4-134" aria-hidden="true" tabindex="-1"></a>    <span class="at">--output-dir</span> tests/artifacts/dir_122 <span class="at">--csv-name</span> elasticity_4_4_mesh.csv</span>
+<span id="cb4-135"><a href="#cb4-135" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-136"><a href="#cb4-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-137"><a href="#cb4-137" aria-hidden="true" tabindex="-1"></a>(<span class="in">`--operator`</span> defaults to <span class="in">`structured`</span> — the DIR-030/113 path is byte-identical;</span>
+<span id="cb4-138"><a href="#cb4-138" aria-hidden="true" tabindex="-1"></a><span class="in">`mesh`</span> bakes in the faithful config so <span class="in">`--lame-mode/--clamp/--target-n-dof`</span> are</span>
+<span id="cb4-139"><a href="#cb4-139" aria-hidden="true" tabindex="-1"></a>ignored-with-a-note.)</span>
+<span id="cb4-140"><a href="#cb4-140" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-141"><a href="#cb4-141" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; The run **converges of its own accord at level 7 with 47 nodes**</span></span>
+<span id="cb4-142"><a href="#cb4-142" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; (</span><span class="in">`ran_out=False`</span><span class="at">, flagged edges 13→…→3→**0**), in **7.3 s / 0.14 GB peak RSS /</span></span>
+<span id="cb4-143"><a href="#cb4-143" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; 0 evictions**.</span></span>
+<span id="cb4-144"><a href="#cb4-144" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-145"><a href="#cb4-145" aria-hidden="true" tabindex="-1"></a>This answers the campaign's open question: the exact-P2 geography is **not** the</span>
+<span id="cb4-146"><a href="#cb4-146" aria-hidden="true" tabindex="-1"></a>structured-P1 one. The faithful DIR-113 run converged at **L4 / 32 nodes**; the</span>
+<span id="cb4-147"><a href="#cb4-147" aria-hidden="true" tabindex="-1"></a>sharper P2 discretisation refines **two levels deeper and places 47 nodes**</span>
+<span id="cb4-148"><a href="#cb4-148" aria-hidden="true" tabindex="-1"></a>(trajectory 13/17/22/28/34/39/44/47). The grid is denser, not merely a relabel</span>
+<span id="cb4-149"><a href="#cb4-149" aria-hidden="true" tabindex="-1"></a>of the P1 grid — pinned in <span class="in">`tests/test_dir_122_mesh_campaign.py`</span>.</span>
+<span id="cb4-150"><a href="#cb4-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-151"><a href="#cb4-151" aria-hidden="true" tabindex="-1"></a>**ROM accuracy on the converged grid** (<span class="in">`rom_error_table_6d.py --operator mesh`</span>,</span>
+<span id="cb4-152"><a href="#cb4-152" aria-hidden="true" tabindex="-1"></a>32 held-out µ, lowest-20 gauge, fixed-<span class="in">`v0`</span> dense truth):</span>
+<span id="cb4-153"><a href="#cb4-153" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-154"><a href="#cb4-154" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; max eigenvalue rel-err **0.11**, **median 5.8·10⁻³**, max subspace angle</span></span>
+<span id="cb4-155"><a href="#cb4-155" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **0.126 rad**, window coverage **0.99** (no query misses the window) — a</span></span>
+<span id="cb4-156"><a href="#cb4-156" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **breach** of the DIR-053 ceilings (2·10⁻³ / 3·10⁻²), exactly the</span></span>
+<span id="cb4-157"><a href="#cb4-157" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; basis-thinness finding above, now measured on the exact-P2 operator.</span></span>
+<span id="cb4-158"><a href="#cb4-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-159"><a href="#cb4-159" aria-hidden="true" tabindex="-1"></a>The soundness curve does **not** keep falling with grid fill: it plateaus at</span>
+<span id="cb4-160"><a href="#cb4-160" aria-hidden="true" tabindex="-1"></a>**~2.2·10⁻² RMS by L4** and holds flat through L7. Adding nodes past L4 tightens</span>
+<span id="cb4-161"><a href="#cb4-161" aria-hidden="true" tabindex="-1"></a>the grid but cannot close the residual — it is the **near-degenerate</span>
+<span id="cb4-162"><a href="#cb4-162" aria-hidden="true" tabindex="-1"></a>eigenvector-gauge** ceiling DIR-120 root-caused (the converged grid packs modes</span>
+<span id="cb4-163"><a href="#cb4-163" aria-hidden="true" tabindex="-1"></a>densely near the top of the window, where the eigenvectors are defined only up</span>
+<span id="cb4-164"><a href="#cb4-164" aria-hidden="true" tabindex="-1"></a>to rotation), not under-resolution. The median stays modest; a handful of</span>
+<span id="cb4-165"><a href="#cb4-165" aria-hidden="true" tabindex="-1"></a>near-degenerate query points drive the max. This is measured and pinned, not</span>
+<span id="cb4-166"><a href="#cb4-166" aria-hidden="true" tabindex="-1"></a>transplanted from the 1D/2D <span class="in">`1e-4`</span> ceiling. See</span>
+<span id="cb4-167"><a href="#cb4-167" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">affine parameter-assembly</span><span class="co">](../affine-assembly.md)</span> for why the per-µ solves are</span>
+<span id="cb4-168"><a href="#cb4-168" aria-hidden="true" tabindex="-1"></a>cheap enough to make a 47-node adaptive run finish in seconds.</span>
+<span id="cb4-169"><a href="#cb4-169" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-170"><a href="#cb4-170" aria-hidden="true" tabindex="-1"></a><span class="fu">## Faithful full-scale run past MATLAB's L2 wall (DIR-124)</span></span>
+<span id="cb4-171"><a href="#cb4-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-172"><a href="#cb4-172" aria-hidden="true" tabindex="-1"></a>DIR-122 above runs the exact-P2 operator with the rebuild's **own native**</span>
+<span id="cb4-173"><a href="#cb4-173" aria-hidden="true" tabindex="-1"></a>adaptive path — the 13-point sparse seed + edge-bisection — and converges</span>
+<span id="cb4-174"><a href="#cb4-174" aria-hidden="true" tabindex="-1"></a>cheaply at L7/47 nodes. DIR-124 runs the *other* experiment the whole</span>
+<span id="cb4-175"><a href="#cb4-175" aria-hidden="true" tabindex="-1"></a>DIR-117/118/119 arc was built for: **the MATLAB computation itself** — the</span>
+<span id="cb4-176"><a href="#cb4-176" aria-hidden="true" tabindex="-1"></a>dissertation's **`3^d` tensor seed** (729 points at d=6, <span class="in">`seed_tensor_lattice`</span>),</span>
+<span id="cb4-177"><a href="#cb4-177" aria-hidden="true" tabindex="-1"></a>MATLAB's **`mirror_bracket`** omnidirectional spawn, the **ω-scale** verdict, the</span>
+<span id="cb4-178"><a href="#cb4-178" aria-hidden="true" tabindex="-1"></a>**p-box** (<span class="in">`p ∈ [0.2,1]×[0.2,0.4]³`</span>, <span class="in">`E = 100·p`</span>), and the frozen §4.4 thresholds</span>
+<span id="cb4-179"><a href="#cb4-179" aria-hidden="true" tabindex="-1"></a>(<span class="in">`t_pi=0.57`</span>, <span class="in">`t_lambda=0.03`</span>, <span class="in">`t_c=0.1`</span>, squared Π) — run **past level 2**, the</span>
+<span id="cb4-180"><a href="#cb4-180" aria-hidden="true" tabindex="-1"></a>level MATLAB dies at (8376 points, 54 min, then an unbounded-eigenvector OOM).</span>
+<span id="cb4-181"><a href="#cb4-181" aria-hidden="true" tabindex="-1"></a>The seed is a first-class flag (<span class="in">`--seed {tensor,sparse}`</span> / <span class="in">`--knots-per-axis`</span>,</span>
+<span id="cb4-182"><a href="#cb4-182" aria-hidden="true" tabindex="-1"></a>default the <span class="in">`3^d`</span> tensor); the sparse seed is a declared alternative, never a</span>
+<span id="cb4-183"><a href="#cb4-183" aria-hidden="true" tabindex="-1"></a>silent substitution. <span class="in">`mirror_bracket`</span> rejects region decomposition and the</span>
+<span id="cb4-184"><a href="#cb4-184" aria-hidden="true" tabindex="-1"></a>parallel pool by construction, so this is **single-process** — the only bound is</span>
+<span id="cb4-185"><a href="#cb4-185" aria-hidden="true" tabindex="-1"></a>the store.</span>
+<span id="cb4-186"><a href="#cb4-186" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-187"><a href="#cb4-187" aria-hidden="true" tabindex="-1"></a><span class="in">```bash</span></span>
+<span id="cb4-188"><a href="#cb4-188" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/dir_124_faithful_campaign.py <span class="at">--max-levels</span> 7 <span class="dt">\</span></span>
+<span id="cb4-189"><a href="#cb4-189" aria-hidden="true" tabindex="-1"></a>    <span class="at">--max-active-mb</span> 2048 <span class="at">--cold-disk-dir</span> <span class="op">&lt;</span>scratch<span class="op">&gt;</span>/spill <span class="at">--cache-dir</span> <span class="op">&lt;</span>scratch<span class="op">&gt;</span>/cache <span class="dt">\</span></span>
+<span id="cb4-190"><a href="#cb4-190" aria-hidden="true" tabindex="-1"></a>    <span class="at">--output-dir</span> tests/artifacts/dir_124 <span class="at">--peak-rss-budget-mb</span> 12000 <span class="at">--rom-queries</span> 32</span>
+<span id="cb4-191"><a href="#cb4-191" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-192"><a href="#cb4-192" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-193"><a href="#cb4-193" aria-hidden="true" tabindex="-1"></a>**The faithful campaign does not converge at a laptop-feasible scale — and that</span>
+<span id="cb4-194"><a href="#cb4-194" aria-hidden="true" tabindex="-1"></a>is the result.** The grid grows as a steady power law (nodes ∝ level^1.40,</span>
+<span id="cb4-195"><a href="#cb4-195" aria-hidden="true" tabindex="-1"></a>R²=0.998) with the flagged-edge count *rising* at every level, never turning</span>
+<span id="cb4-196"><a href="#cb4-196" aria-hidden="true" tabindex="-1"></a>over:</span>
+<span id="cb4-197"><a href="#cb4-197" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-198"><a href="#cb4-198" aria-hidden="true" tabindex="-1"></a>| level | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 |</span>
+<span id="cb4-199"><a href="#cb4-199" aria-hidden="true" tabindex="-1"></a>|:--|--:|--:|--:|--:|--:|--:|--:|--:|</span>
+<span id="cb4-200"><a href="#cb4-200" aria-hidden="true" tabindex="-1"></a>| nodes | 729 | 1640 | 3001 | 4663 | 6392 | 8421 | 10649 | **12702** |</span>
+<span id="cb4-201"><a href="#cb4-201" aria-hidden="true" tabindex="-1"></a>| flagged edges | 0 | 911 | 2134 | 3453 | 4559 | 5602 | 6596 | 7348 |</span>
+<span id="cb4-202"><a href="#cb4-202" aria-hidden="true" tabindex="-1"></a>| active tier (MiB) | 356 | 776 | 1437 | 2047 | 2048 | 2048 | 2048 | 2048 |</span>
+<span id="cb4-203"><a href="#cb4-203" aria-hidden="true" tabindex="-1"></a>| evictions | 0 | 0 | 0 | 540 | 2400 | 4589 | 6990 | **9155** |</span>
+<span id="cb4-204"><a href="#cb4-204" aria-hidden="true" tabindex="-1"></a>| peak RSS (MiB) | 487 | 960 | 1709 | 2431 | 2492 | 2525 | 2576 | **2613** |</span>
+<span id="cb4-205"><a href="#cb4-205" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-206"><a href="#cb4-206" aria-hidden="true" tabindex="-1"></a>The L0–L3 prefix (729→1640→3001→4663) **bit-matches** the DIR-119 exact-mesh</span>
+<span id="cb4-207"><a href="#cb4-207" aria-hidden="true" tabindex="-1"></a>2-level parity probe and its own independent growth smoke — the faithful setup</span>
+<span id="cb4-208"><a href="#cb4-208" aria-hidden="true" tabindex="-1"></a>is deterministic under <span class="in">`fixed_v0`</span>.</span>
+<span id="cb4-209"><a href="#cb4-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-210"><a href="#cb4-210" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **This is the rebuild's entire reason to exist, measured.** The MATLAB original</span></span>
+<span id="cb4-211"><a href="#cb4-211" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; OOMs here because it accumulates eigenvectors without bound. The rebuild's</span></span>
+<span id="cb4-212"><a href="#cb4-212" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; bounded </span><span class="in">`SnapshotStore`</span><span class="at"> turns the low-rank premise into an *enforced* invariant:</span></span>
+<span id="cb4-213"><a href="#cb4-213" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; the LRU active tier **clamps at its 2 GB cap from level 4 on**, the cold tier</span></span>
+<span id="cb4-214"><a href="#cb4-214" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **spills 2.4 GB across 9155 evictions to disk**, and **peak RSS holds ~2.6 GB</span></span>
+<span id="cb4-215"><a href="#cb4-215" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; flat while the grid triples** (4663→12702 nodes). The run reaches **level 7 /</span></span>
+<span id="cb4-216"><a href="#cb4-216" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; 12702 nodes in 25 min, single process, with a clean </span><span class="in">`LEVEL_7_COMPLETED`</span><span class="at"> and</span></span>
+<span id="cb4-217"><a href="#cb4-217" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; zero </span><span class="in">`StoreOverflow`</span><span class="at">** — five levels past MATLAB's wall, no OS OOM-kill.</span></span>
+<span id="cb4-218"><a href="#cb4-218" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-219"><a href="#cb4-219" aria-hidden="true" tabindex="-1"></a>As a number: the active-byte growth exponent is **0.87** — *sub-linear*, decoupled</span>
+<span id="cb4-220"><a href="#cb4-220" aria-hidden="true" tabindex="-1"></a>from the node-count exponent 1.40, because the cap does its job. The cold-tier</span>
+<span id="cb4-221"><a href="#cb4-221" aria-hidden="true" tabindex="-1"></a>rank keeps climbing (5.3k→105k stored eigenvectors, ≈11 modes per evicted</span>
+<span id="cb4-222"><a href="#cb4-222" aria-hidden="true" tabindex="-1"></a>snapshot), so the eigenvector *family* is **not** staying low-rank as the grid</span>
+<span id="cb4-223"><a href="#cb4-223" aria-hidden="true" tabindex="-1"></a>grows at this faithful scale — the premise holds only because the bounded store</span>
+<span id="cb4-224"><a href="#cb4-224" aria-hidden="true" tabindex="-1"></a>spills the surplus to disk rather than RAM. Either way, the faithful computation</span>
+<span id="cb4-225"><a href="#cb4-225" aria-hidden="true" tabindex="-1"></a>runs to a reported depth in bounded memory; a deeper level is a wall-time /</span>
+<span id="cb4-226"><a href="#cb4-226" aria-hidden="true" tabindex="-1"></a>disk-budget choice, not a memory-safety one.</span>
+<span id="cb4-227"><a href="#cb4-227" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-228"><a href="#cb4-228" aria-hidden="true" tabindex="-1"></a>**ROM accuracy on the L7 grid** (<span class="in">`window_rom_predict`</span>, 32 held-out µ in the</span>
+<span id="cb4-229"><a href="#cb4-229" aria-hidden="true" tabindex="-1"></a>p-box, pool 2, fixed-<span class="in">`v0`</span> dense truth):</span>
+<span id="cb4-230"><a href="#cb4-230" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-231"><a href="#cb4-231" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; max eigenvalue rel-err **9.1·10⁻²**, **median 5.3·10⁻³**; max subspace angle</span></span>
+<span id="cb4-232"><a href="#cb4-232" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **0.162 rad**, median **4.1·10⁻²** — the same thin-Window-basis ceiling as the</span></span>
+<span id="cb4-233"><a href="#cb4-233" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; DIR-113/122 runs (a bounded ~8-mode snapshot is not a near-complete basis in</span></span>
+<span id="cb4-234"><a href="#cb4-234" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; this dense near-degenerate spectrum), measured on the faithful full-scale grid,</span></span>
+<span id="cb4-235"><a href="#cb4-235" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; not transplanted.</span></span>
+<span id="cb4-236"><a href="#cb4-236" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-237"><a href="#cb4-237" aria-hidden="true" tabindex="-1"></a>Committed artifacts under <span class="in">`tests/artifacts/dir_124/`</span> (run report + telemetry CSV,</span>
+<span id="cb4-238"><a href="#cb4-238" aria-hidden="true" tabindex="-1"></a>ROM error table + summary; the 2.4 GB disk-spill cache is scratch-only, not</span>
+<span id="cb4-239"><a href="#cb4-239" aria-hidden="true" tabindex="-1"></a>committed); pinned by <span class="in">`tests/test_dir_124_faithful_campaign.py`</span> — the exact</span>
+<span id="cb4-240"><a href="#cb4-240" aria-hidden="true" tabindex="-1"></a>trajectory, the bounded-memory invariants (active cap, disk spill, flat RSS), the</span>
+<span id="cb4-241"><a href="#cb4-241" aria-hidden="true" tabindex="-1"></a>growth-fit exponents, and the ROM bands, plus a cheap live sparse-L1 re-run that</span>
+<span id="cb4-242"><a href="#cb4-242" aria-hidden="true" tabindex="-1"></a>re-derives the faithful config deterministically.</span>
+<span id="cb4-243"><a href="#cb4-243" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-244"><a href="#cb4-244" aria-hidden="true" tabindex="-1"></a><span class="fu">## Deep continuation — does it converge, and does deeper get better? (DIR-125)</span></span>
+<span id="cb4-245"><a href="#cb4-245" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-246"><a href="#cb4-246" aria-hidden="true" tabindex="-1"></a>DIR-124 above stopped at a **chosen** <span class="in">`--max-levels 7`</span> cap with every real budget</span>
+<span id="cb4-247"><a href="#cb4-247" aria-hidden="true" tabindex="-1"></a>~80 % unused, so its "grows ∝ level^1.40, does not converge" was an</span>
+<span id="cb4-248"><a href="#cb4-248" aria-hidden="true" tabindex="-1"></a>*extrapolation* from the pre-saturation ramp, and its ROM number was a single L7</span>
+<span id="cb4-249"><a href="#cb4-249" aria-hidden="true" tabindex="-1"></a>point. DIR-125 removes both limits: the **same driver, same faithful config**, run</span>
+<span id="cb4-250"><a href="#cb4-250" aria-hidden="true" tabindex="-1"></a>at <span class="in">`--max-levels 100`</span> with generous laptop-sized budgets (18 GB disk, 180 min</span>
+<span id="cb4-251"><a href="#cb4-251" aria-hidden="true" tabindex="-1"></a>wall, 12 GB RSS) so the stop is real — and a **per-level ROM soundness curve**</span>
+<span id="cb4-252"><a href="#cb4-252" aria-hidden="true" tabindex="-1"></a>(<span class="in">`scripts/dir_125_soundness.py`</span>) scoring the grid-as-of-level-L for every L</span>
+<span id="cb4-253"><a href="#cb4-253" aria-hidden="true" tabindex="-1"></a>against fixed-<span class="in">`v0`</span> dense truth.</span>
+<span id="cb4-254"><a href="#cb4-254" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-255"><a href="#cb4-255" aria-hidden="true" tabindex="-1"></a><span class="in">```bash</span></span>
+<span id="cb4-256"><a href="#cb4-256" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/dir_124_faithful_campaign.py <span class="at">--max-levels</span> 100 <span class="dt">\</span></span>
+<span id="cb4-257"><a href="#cb4-257" aria-hidden="true" tabindex="-1"></a>    <span class="at">--max-active-mb</span> 2048 <span class="at">--cold-disk-dir</span> <span class="op">&lt;</span>scratch<span class="op">&gt;</span>/spill <span class="at">--cache-dir</span> <span class="op">&lt;</span>scratch<span class="op">&gt;</span>/cache <span class="dt">\</span></span>
+<span id="cb4-258"><a href="#cb4-258" aria-hidden="true" tabindex="-1"></a>    <span class="at">--cold-max-mb</span> 18000 <span class="at">--peak-rss-budget-mb</span> 12000 <span class="at">--max-wall-time-min</span> 180 <span class="dt">\</span></span>
+<span id="cb4-259"><a href="#cb4-259" aria-hidden="true" tabindex="-1"></a>    <span class="at">--rom-queries</span> 0 <span class="at">--output-dir</span> tests/artifacts/dir_125 <span class="at">--csv-name</span> convergence_run.csv</span>
+<span id="cb4-260"><a href="#cb4-260" aria-hidden="true" tabindex="-1"></a><span class="ex">uv</span> run python scripts/dir_125_soundness.py <span class="at">--cache-dir</span> <span class="op">&lt;</span>scratch<span class="op">&gt;</span>/cache <span class="dt">\</span></span>
+<span id="cb4-261"><a href="#cb4-261" aria-hidden="true" tabindex="-1"></a>    <span class="at">--n-queries</span> 32 <span class="at">--pool-size</span> 2 <span class="at">--out-dir</span> tests/artifacts/dir_125</span>
+<span id="cb4-262"><a href="#cb4-262" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-263"><a href="#cb4-263" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-264"><a href="#cb4-264" aria-hidden="true" tabindex="-1"></a>**Result 1 — it converges. The faithful campaign reaches a natural fixed point at</span>
+<span id="cb4-265"><a href="#cb4-265" aria-hidden="true" tabindex="-1"></a>L23 / 21867 nodes, bounded, in 55 min — overturning DIR-124's L7 "grows-forever"</span>
+<span id="cb4-266"><a href="#cb4-266" aria-hidden="true" tabindex="-1"></a>extrapolation.** The <span class="in">`mirror_bracket`</span> active frontier empties (its termination</span>
+<span id="cb4-267"><a href="#cb4-267" aria-hidden="true" tabindex="-1"></a>condition, <span class="in">`mirror_bracket.py`</span>): per-level additions peak at L6 then decay</span>
+<span id="cb4-268"><a href="#cb4-268" aria-hidden="true" tabindex="-1"></a>monotonically to near-zero, so the grid *turns over* rather than growing without</span>
+<span id="cb4-269"><a href="#cb4-269" aria-hidden="true" tabindex="-1"></a>bound. The stop is **natural** (`ran_out=False`, below the cap) — **not** a</span>
+<span id="cb4-270"><a href="#cb4-270" aria-hidden="true" tabindex="-1"></a>wall/disk/RSS budget and **not** the level cap:</span>
+<span id="cb4-271"><a href="#cb4-271" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-272"><a href="#cb4-272" aria-hidden="true" tabindex="-1"></a>| level | 6 | 7 | 8 | 10 | 12 | 15 | 18 | 20 | 22 | 23 |</span>
+<span id="cb4-273"><a href="#cb4-273" aria-hidden="true" tabindex="-1"></a>|:--|--:|--:|--:|--:|--:|--:|--:|--:|--:|--:|</span>
+<span id="cb4-274"><a href="#cb4-274" aria-hidden="true" tabindex="-1"></a>| nodes | 10649 | 12702 | 14922 | 18588 | 20162 | 21212 | 21686 | 21793 | 21853 | **21867** |</span>
+<span id="cb4-275"><a href="#cb4-275" aria-hidden="true" tabindex="-1"></a>| added | 2228 | 2053 | 2220 | 1556 | 541 | 257 | 100 | 44 | 27 | **14** |</span>
+<span id="cb4-276"><a href="#cb4-276" aria-hidden="true" tabindex="-1"></a>| flagged edges | 6596 | 7348 | 7828 | 8274 | 8417 | 8521 | 8563 | 8573 | 8578 | 8578 |</span>
+<span id="cb4-277"><a href="#cb4-277" aria-hidden="true" tabindex="-1"></a>| peak RSS (MiB) | 2582 | 2622 | 2654 | 2715 | 2737 | 2755 | 2792 | 2805 | 2817 | **2818** |</span>
+<span id="cb4-278"><a href="#cb4-278" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-279"><a href="#cb4-279" aria-hidden="true" tabindex="-1"></a>The revised growth exponent over the **full** L0–L23 trajectory is **nodes ∝</span>
+<span id="cb4-280"><a href="#cb4-280" aria-hidden="true" tabindex="-1"></a>level^1.08** (R²=0.94), not L7's 1.40 — the earlier number was the ramp, not the</span>
+<span id="cb4-281"><a href="#cb4-281" aria-hidden="true" tabindex="-1"></a>asymptote. The L0–L7 prefix bit-matches DIR-124 exactly (same <span class="in">`fixed_v0`</span> faithful</span>
+<span id="cb4-282"><a href="#cb4-282" aria-hidden="true" tabindex="-1"></a>setup, only the caps/budgets differ).</span>
+<span id="cb4-283"><a href="#cb4-283" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-284"><a href="#cb4-284" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **Converges, bounded, at laptop scale — every budget unused.** Peak RSS</span></span>
+<span id="cb4-285"><a href="#cb4-285" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **4.1 GB** (budget 12 GB), wall **55 min** (budget 180 min), disk spill</span></span>
+<span id="cb4-286"><a href="#cb4-286" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **5.2 GB** (cap 18 GB), active tier clamped flat at its **2 GB** cap the whole</span></span>
+<span id="cb4-287"><a href="#cb4-287" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; way, **zero `StoreOverflow`, no OS OOM-kill** — 16 levels past DIR-124's L7 and</span></span>
+<span id="cb4-288"><a href="#cb4-288" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; 21 past MATLAB's L2 OOM wall. The honest nuance: termination is by **frontier /</span></span>
+<span id="cb4-289"><a href="#cb4-289" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; dyadic-lattice saturation**, not full certification — **8578 edges remain</span></span>
+<span id="cb4-290"><a href="#cb4-290" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; flagged REFINE** at halt (the near-degenerate eigenvector gauge, DIR-120, keeps</span></span>
+<span id="cb4-291"><a href="#cb4-291" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; re-flagging the dense upper window), but the </span><span class="in">`mirror_bracket`</span><span class="at"> spawn can no</span></span>
+<span id="cb4-292"><a href="#cb4-292" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; longer place a new node to act on them, so the adaptive loop stops.</span></span>
+<span id="cb4-293"><a href="#cb4-293" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-294"><a href="#cb4-294" aria-hidden="true" tabindex="-1"></a>**Result 2 — deeper does *not* get better. ROM accuracy plateaus at the</span>
+<span id="cb4-295"><a href="#cb4-295" aria-hidden="true" tabindex="-1"></a>near-degenerate eigenvector-gauge ceiling by L2–L3, then is flat for 20 more</span>
+<span id="cb4-296"><a href="#cb4-296" aria-hidden="true" tabindex="-1"></a>levels** (<span class="in">`window_rom_predict`</span>, 32 held-out µ in the p-box, pool 2, lowest-6,</span>
+<span id="cb4-297"><a href="#cb4-297" aria-hidden="true" tabindex="-1"></a>fixed-<span class="in">`v0`</span> dense truth):</span>
+<span id="cb4-298"><a href="#cb4-298" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-299"><a href="#cb4-299" aria-hidden="true" tabindex="-1"></a>| level L | 0 | 1 | 2 | 3 | 7 | 8 | 15 | 23 |</span>
+<span id="cb4-300"><a href="#cb4-300" aria-hidden="true" tabindex="-1"></a>|:--|--:|--:|--:|--:|--:|--:|--:|--:|</span>
+<span id="cb4-301"><a href="#cb4-301" aria-hidden="true" tabindex="-1"></a>| nodes | 729 | 1640 | 3001 | 4663 | 12702 | 14922 | 21212 | 21867 |</span>
+<span id="cb4-302"><a href="#cb4-302" aria-hidden="true" tabindex="-1"></a>| rel-err median | 1.0e-2 | 6.5e-3 | 5.5e-3 | 5.0e-3 | 5.3e-3 | 4.9e-3 | 4.9e-3 | **4.9e-3** |</span>
+<span id="cb4-303"><a href="#cb4-303" aria-hidden="true" tabindex="-1"></a>| rel-err **max** | 1.7e-1 | 9.1e-2 | 9.1e-2 | 9.1e-2 | 9.1e-2 | 9.1e-2 | 9.1e-2 | **9.1e-2** |</span>
+<span id="cb4-304"><a href="#cb4-304" aria-hidden="true" tabindex="-1"></a>| angle median (rad) | 4.2e-2 | 3.8e-2 | 2.1e-2 | 1.9e-2 | 2.0e-2 | 2.0e-2 | 2.0e-2 | **2.0e-2** |</span>
+<span id="cb4-305"><a href="#cb4-305" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-306"><a href="#cb4-306" aria-hidden="true" tabindex="-1"></a>The entire gain is L0→L2 (median 1.0e-2 → 5.5e-3); from **L8 the curve is</span>
+<span id="cb4-307"><a href="#cb4-307" aria-hidden="true" tabindex="-1"></a>bit-identical** (median 4.856e-3, max 9.127e-2, angle 2.034e-2) even as the grid</span>
+<span id="cb4-308"><a href="#cb4-308" aria-hidden="true" tabindex="-1"></a>grows 14922→21867 nodes. The classifier's verdict is</span>
+<span id="cb4-309"><a href="#cb4-309" aria-hidden="true" tabindex="-1"></a>**`plateau_at_gauge_ceiling`** (L0→L23 buys only 2.06×, and the best level is L8 —</span>
+<span id="cb4-310"><a href="#cb4-310" aria-hidden="true" tabindex="-1"></a>far from the deepest, the signature of a shallow-gain-then-flat plateau, not a</span>
+<span id="cb4-311"><a href="#cb4-311" aria-hidden="true" tabindex="-1"></a>convergent improvement). The max rel-err is a **fixed ceiling from L1 on** (9.1e-2,</span>
+<span id="cb4-312"><a href="#cb4-312" aria-hidden="true" tabindex="-1"></a>one held-out µ whose top window mode is gauge-degenerate — DIR-120), never</span>
+<span id="cb4-313"><a href="#cb4-313" aria-hidden="true" tabindex="-1"></a>resolved by grid fill. The mechanism is direct: the deep continuation refines only</span>
+<span id="cb4-314"><a href="#cb4-314" aria-hidden="true" tabindex="-1"></a>the near-degenerate flagged regions high in the dense spectrum, which are *not*</span>
+<span id="cb4-315"><a href="#cb4-315" aria-hidden="true" tabindex="-1"></a>near generic held-out µ, so the pool-2 basis for a random query stops changing</span>
+<span id="cb4-316"><a href="#cb4-316" aria-hidden="true" tabindex="-1"></a>once its neighbourhood is filled (~L8). The L7 point cross-checks DIR-124's</span>
+<span id="cb4-317"><a href="#cb4-317" aria-hidden="true" tabindex="-1"></a>independently-computed single point exactly (median 5.3e-3, max 9.1e-2).</span>
+<span id="cb4-318"><a href="#cb4-318" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-319"><a href="#cb4-319" aria-hidden="true" tabindex="-1"></a>Committed artifacts under <span class="in">`tests/artifacts/dir_125/`</span> (convergence run report + CSV;</span>
+<span id="cb4-320"><a href="#cb4-320" aria-hidden="true" tabindex="-1"></a>per-level soundness curve JSON/CSV/figure + per-query CSV; the 6.5 GB run cache and</span>
+<span id="cb4-321"><a href="#cb4-321" aria-hidden="true" tabindex="-1"></a>5.2 GB spill are scratch-only, not committed); pinned by</span>
+<span id="cb4-322"><a href="#cb4-322" aria-hidden="true" tabindex="-1"></a><span class="in">`tests/test_dir_125_deep_convergence.py`</span> — the natural-not-budget stop, the</span>
+<span id="cb4-323"><a href="#cb4-323" aria-hidden="true" tabindex="-1"></a>turn-over (additions decay + flagged plateau), the bounded-memory invariants, the</span>
+<span id="cb4-324"><a href="#cb4-324" aria-hidden="true" tabindex="-1"></a>plateau verdict + flat-ceiling tail, the DIR-124 L7 cross-check, and live pure</span>
+<span id="cb4-325"><a href="#cb4-325" aria-hidden="true" tabindex="-1"></a>plumbing (query determinism, level truncation, the verdict classifier). MATLAB</span>
+<span id="cb4-326"><a href="#cb4-326" aria-hidden="true" tabindex="-1"></a>parity is **out of scope** — there is no MATLAB reference past L2 (the DIR-117</span>
+<span id="cb4-327"><a href="#cb4-327" aria-hidden="true" tabindex="-1"></a>probe's <span class="in">`lev_max=2`</span>); the quality claim is vs dense ground truth only.</span>
+<span id="cb4-328"><a href="#cb4-328" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-329"><a href="#cb4-329" aria-hidden="true" tabindex="-1"></a><span class="fu">## Certification telemetry — the independent inertia certificate</span></span>
+<span id="cb4-330"><a href="#cb4-330" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-331"><a href="#cb4-331" aria-hidden="true" tabindex="-1"></a>The a-posteriori matrix Π and the DIR-088 mass budget certify the *computed*</span>
+<span id="cb4-332"><a href="#cb4-332" aria-hidden="true" tabindex="-1"></a>subspaces; <span class="in">`window_count`</span> (dense LDLᵀ Sylvester inertia, DIR-089) counts the</span>
+<span id="cb4-333"><a href="#cb4-333" aria-hidden="true" tabindex="-1"></a>*true* in-window eigenvalues from the assembled K(µ), M(µ) alone — an</span>
+<span id="cb4-334"><a href="#cb4-334" aria-hidden="true" tabindex="-1"></a>independent certificate that sees modes the subspace side cannot. Over **all</span>
+<span id="cb4-335"><a href="#cb4-335" aria-hidden="true" tabindex="-1"></a>31 tested edges** of the Stage-A run (endpoints + un-solved midpoints,</span>
+<span id="cb4-336"><a href="#cb4-336" aria-hidden="true" tabindex="-1"></a><span class="in">`scripts/inertia_certificate_6d.py`</span>):</span>
+<span id="cb4-337"><a href="#cb4-337" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-338"><a href="#cb4-338" aria-hidden="true" tabindex="-1"></a>| count | value | reading |</span>
+<span id="cb4-339"><a href="#cb4-339" aria-hidden="true" tabindex="-1"></a>|:--|--:|:--|</span>
+<span id="cb4-340"><a href="#cb4-340" aria-hidden="true" tabindex="-1"></a>| <span class="in">`endpoint_mismatch`</span> | **0** | <span class="in">`solve_window`</span> returned the complete in-window set at every node |</span>
+<span id="cb4-341"><a href="#cb4-341" aria-hidden="true" tabindex="-1"></a>| <span class="in">`mid_bump`</span> | **0** | no mode present at a midpoint but at neither endpoint — no grid-invisible window entry |</span>
+<span id="cb4-342"><a href="#cb4-342" aria-hidden="true" tabindex="-1"></a>| <span class="in">`cross_edge_delta`</span> | 16 | the in-window count changes across half the edges (a ~10-mode window is far quieter than the pre-fix ~380) — all surfaced to the matching layer |</span>
+<span id="cb4-343"><a href="#cb4-343" aria-hidden="true" tabindex="-1"></a>| <span class="in">`cert_with_entry`</span> | 12 | count changes on certified edges: surplus bands the Algorithm-6 <span class="in">`t_c`</span> gate certified-and-dropped (Q14 territory, not a blind spot given <span class="in">`endpoint_mismatch = 0`</span>) |</span>
+<span id="cb4-344"><a href="#cb4-344" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-345"><a href="#cb4-345" aria-hidden="true" tabindex="-1"></a>The DIR-089 verdict — the node-local window solve is complete and the only</span>
+<span id="cb4-346"><a href="#cb4-346" aria-hidden="true" tabindex="-1"></a>genuinely-uncaught category (<span class="in">`mid_bump`</span>) is empty — **holds unchanged on the</span>
+<span id="cb4-347"><a href="#cb4-347" aria-hidden="true" tabindex="-1"></a>sparser faithful window**, exactly as DIR-112 predicted.</span>
+<span id="cb4-348"><a href="#cb4-348" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-349"><a href="#cb4-349" aria-hidden="true" tabindex="-1"></a><span class="fu">## Domain decomposition at 6D — Tier 1 (rank savings)</span></span>
+<span id="cb4-350"><a href="#cb4-350" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-351"><a href="#cb4-351" aria-hidden="true" tabindex="-1"></a>The first rendered view of the DIR-036 decomposition on the real 6D problem</span>
+<span id="cb4-352"><a href="#cb4-352" aria-hidden="true" tabindex="-1"></a>(Stage B1). The split criterion still fires: **5 splits**, 4 freezes, peak</span>
+<span id="cb4-353"><a href="#cb4-353" aria-hidden="true" tabindex="-1"></a>**6 subdomains**, and the Tier-1 headline —</span>
+<span id="cb4-354"><a href="#cb4-354" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-355"><a href="#cb4-355" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; single-store POD rank **35** vs max per-region rank **22** (−13, a</span></span>
+<span id="cb4-356"><a href="#cb4-356" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **37 % reduction**), the 6D analogue of the 2D page's 31 → 23.</span></span>
+<span id="cb4-357"><a href="#cb4-357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-358"><a href="#cb4-358" aria-hidden="true" tabindex="-1"></a><span class="al">![](../figures/elasticity-4-4/rank-savings-6d.png)</span></span>
+<span id="cb4-359"><a href="#cb4-359" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-360"><a href="#cb4-360" aria-hidden="true" tabindex="-1"></a><span class="al">![](../figures/elasticity-4-4/region-timeline-6d.png)</span></span>
+<span id="cb4-361"><a href="#cb4-361" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-362"><a href="#cb4-362" aria-hidden="true" tabindex="-1"></a>The absolute ranks are small (35, not the pre-fix 1311) because the faithful</span>
+<span id="cb4-363"><a href="#cb4-363" aria-hidden="true" tabindex="-1"></a>grid is small; the *fractional* saving (−37 %) survives, so decomposition still</span>
+<span id="cb4-364"><a href="#cb4-364" aria-hidden="true" tabindex="-1"></a>buys the same relative relief at the true scale.</span>
+<span id="cb4-365"><a href="#cb4-365" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-366"><a href="#cb4-366" aria-hidden="true" tabindex="-1"></a>The lower panel is the 6D measurement of the **interface budget** (fraction of</span>
+<span id="cb4-367"><a href="#cb4-367" aria-hidden="true" tabindex="-1"></a>nodes on region boundaries — the Q13 scalability instrument). Here it climbs to</span>
+<span id="cb4-368"><a href="#cb4-368" aria-hidden="true" tabindex="-1"></a>**0.31** at L4 — it does **not** stay ≤ 0.1 as the pre-fix 166-node grid did.</span>
+<span id="cb4-369"><a href="#cb4-369" aria-hidden="true" tabindex="-1"></a>This is an honest scalability caveat, not a regression: the budget is a *ratio*,</span>
+<span id="cb4-370"><a href="#cb4-370" aria-hidden="true" tabindex="-1"></a>and on a sparse 32-node grid a larger fraction of nodes necessarily sit on the</span>
+<span id="cb4-371"><a href="#cb4-371" aria-hidden="true" tabindex="-1"></a>6 subdomain boundaries. The concern the instrument exists to watch — boundary</span>
+<span id="cb4-372"><a href="#cb4-372" aria-hidden="true" tabindex="-1"></a>duplication growing faster than the interior — is best judged on a *denser*</span>
+<span id="cb4-373"><a href="#cb4-373" aria-hidden="true" tabindex="-1"></a>grid; at the faithful §4.4 scale the interior is simply too small to dilute the</span>
+<span id="cb4-374"><a href="#cb4-374" aria-hidden="true" tabindex="-1"></a>boundary.</span>
+<span id="cb4-375"><a href="#cb4-375" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-376"><a href="#cb4-376" aria-hidden="true" tabindex="-1"></a><span class="fu">## Domain decomposition at 6D — Tier 2 (measured parallel speedup)</span></span>
+<span id="cb4-377"><a href="#cb4-377" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-378"><a href="#cb4-378" aria-hidden="true" tabindex="-1"></a>The equivalence gate stands and is now **cleaner**; the wall-clock story</span>
+<span id="cb4-379"><a href="#cb4-379" aria-hidden="true" tabindex="-1"></a>inverts:</span>
+<span id="cb4-380"><a href="#cb4-380" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-381"><a href="#cb4-381" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Strict equivalence gate at campaign n_dof** (DIR-055B harness, FirstK</span>
+<span id="cb4-382"><a href="#cb4-382" aria-hidden="true" tabindex="-1"></a>   config): serial and 14-worker-pool runs produce **identical nodes and</span>
+<span id="cb4-383"><a href="#cb4-383" aria-hidden="true" tabindex="-1"></a>   verdicts and eigenvalue max-rel-diff 0.0** at n_dof = 1846. The measured</span>
+<span id="cb4-384"><a href="#cb4-384" aria-hidden="true" tabindex="-1"></a>   per-region barrier-model speedup is **1.82×** against the equal-cost</span>
+<span id="cb4-385"><a href="#cb4-385" aria-hidden="true" tabindex="-1"></a>   projection's 1.08×, but the **raw end-to-end wall-clock is 0.76×** —</span>
+<span id="cb4-386"><a href="#cb4-386" aria-hidden="true" tabindex="-1"></a>   overhead-bound (serial 0.40 s vs parallel 0.52 s).</span>
+<span id="cb4-387"><a href="#cb4-387" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Raw campaign wall-clock** (Window config, Stage A vs B1): **1.6 s → 2.3 s**</span>
+<span id="cb4-388"><a href="#cb4-388" aria-hidden="true" tabindex="-1"></a>   — the parallel pool is *slower* than serial on the faithful operator.</span>
+<span id="cb4-389"><a href="#cb4-389" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-390"><a href="#cb4-390" aria-hidden="true" tabindex="-1"></a>The reason is direct: at the faithful window a solve returns ~10 modes and costs</span>
+<span id="cb4-391"><a href="#cb4-391" aria-hidden="true" tabindex="-1"></a>milliseconds, so process spawn / pickle / barrier overhead dominates the 14</span>
+<span id="cb4-392"><a href="#cb4-392" aria-hidden="true" tabindex="-1"></a>workers. The pre-fix 2.43× speedup was real but depended entirely on the fake</span>
+<span id="cb4-393"><a href="#cb4-393" aria-hidden="true" tabindex="-1"></a>window's ~380-mode heavy solves. **At the true §4.4 scale the parallel pool</span>
+<span id="cb4-394"><a href="#cb4-394" aria-hidden="true" tabindex="-1"></a>buys nothing in wall-clock** — the honest conclusion, and a reversal of the</span>
+<span id="cb4-395"><a href="#cb4-395" aria-hidden="true" tabindex="-1"></a>pre-fix page.</span>
+<span id="cb4-396"><a href="#cb4-396" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-397"><a href="#cb4-397" aria-hidden="true" tabindex="-1"></a>One further faithful improvement: the pre-fix page carried a caveat that under</span>
+<span id="cb4-398"><a href="#cb4-398" aria-hidden="true" tabindex="-1"></a>the Window config the parallel run flipped **2 of ~124k band verdicts**</span>
+<span id="cb4-399"><a href="#cb4-399" aria-hidden="true" tabindex="-1"></a>(REFINE ↔ CERTIFIED, a BLAS reduction-order effect). On the sparse faithful</span>
+<span id="cb4-400"><a href="#cb4-400" aria-hidden="true" tabindex="-1"></a>window **that flip is gone** — Stage A, the serial <span class="in">`--regions`</span> twin, and the</span>
+<span id="cb4-401"><a href="#cb4-401" aria-hidden="true" tabindex="-1"></a>14-worker parallel run are all verdict-byte-identical. The sparse window carries</span>
+<span id="cb4-402"><a href="#cb4-402" aria-hidden="true" tabindex="-1"></a>almost no near-threshold bands for last-ulp noise to tip.</span>
+<span id="cb4-403"><a href="#cb4-403" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-404"><a href="#cb4-404" aria-hidden="true" tabindex="-1"></a><span class="fu">## Mesh independence</span></span>
+<span id="cb4-405"><a href="#cb4-405" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-406"><a href="#cb4-406" aria-hidden="true" tabindex="-1"></a>Three mesh resolutions, one configuration (<span class="in">`mesh_independence_6d.csv`</span>):</span>
+<span id="cb4-407"><a href="#cb4-407" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-408"><a href="#cb4-408" aria-hidden="true" tabindex="-1"></a>| n_dof | nodes per level | certified fraction | wall | peak RSS |</span>
+<span id="cb4-409"><a href="#cb4-409" aria-hidden="true" tabindex="-1"></a>|--:|:--|--:|--:|--:|</span>
+<span id="cb4-410"><a href="#cb4-410" aria-hidden="true" tabindex="-1"></a>| 846 | 13, 17, 22, 27, 33 | 0.458 | 0.9 s | 88 MB |</span>
+<span id="cb4-411"><a href="#cb4-411" aria-hidden="true" tabindex="-1"></a>| 1846 | 13, 17, 22, 27, 32 | 0.421 | 1.6 s | 96 MB |</span>
+<span id="cb4-412"><a href="#cb4-412" aria-hidden="true" tabindex="-1"></a>| 6576 | 13, 17, 22, 28, 33 | 0.438 | 5.7 s | 131 MB |</span>
+<span id="cb4-413"><a href="#cb4-413" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-414"><a href="#cb4-414" aria-hidden="true" tabindex="-1"></a>The refinement **geography is now mesh-independent**: identical seed and early</span>
+<span id="cb4-415"><a href="#cb4-415" aria-hidden="true" tabindex="-1"></a>levels (13/17/22 at L0–L2 everywhere) and a final count of ~33/32/33 across an</span>
+<span id="cb4-416"><a href="#cb4-416" aria-hidden="true" tabindex="-1"></a>8× span in n_dof — not the pre-fix 145 → 166 → 193 that *grew* with the mesh.</span>
+<span id="cb4-417"><a href="#cb4-417" aria-hidden="true" tabindex="-1"></a>That growth was itself a symptom of the fake operator: a finer mesh resolved</span>
+<span id="cb4-418"><a href="#cb4-418" aria-hidden="true" tabindex="-1"></a>more of the ~380-mode window's spurious content, so more band pairs became</span>
+<span id="cb4-419"><a href="#cb4-419" aria-hidden="true" tabindex="-1"></a>testable and more edges flagged. On the corrected operator the parameter-space</span>
+<span id="cb4-420"><a href="#cb4-420" aria-hidden="true" tabindex="-1"></a>geography decouples from the spatial mesh, as it should — the certified fraction</span>
+<span id="cb4-421"><a href="#cb4-421" aria-hidden="true" tabindex="-1"></a>is flat at ~0.44 rather than falling from 0.47 to 0.23. The level cap</span>
+<span id="cb4-422"><a href="#cb4-422" aria-hidden="true" tabindex="-1"></a>(<span class="in">`ran_out=True`</span> at every scale) still binds before the geographies could diverge.</span>
+<span id="cb4-423"><a href="#cb4-423" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-424"><a href="#cb4-424" aria-hidden="true" tabindex="-1"></a><span class="al">![](../figures/elasticity-4-4/mesh-independence-6d.png)</span></span>
+<span id="cb4-425"><a href="#cb4-425" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-426"><a href="#cb4-426" aria-hidden="true" tabindex="-1"></a><span class="fu">## Bounded-resource record — dissertation scale in seconds</span></span>
+<span id="cb4-427"><a href="#cb4-427" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-428"><a href="#cb4-428" aria-hidden="true" tabindex="-1"></a>The last full-scale run of the original MATLAB predates this rebuild's memory</span>
+<span id="cb4-429"><a href="#cb4-429" aria-hidden="true" tabindex="-1"></a>work and was killed by the OS. The pre-fix rebuild campaign answered that at the</span>
+<span id="cb4-430"><a href="#cb4-430" aria-hidden="true" tabindex="-1"></a>fake scale with an overnight 7 h 26 min / 9.2 GB / 5.8 GB-spilled Stage C. On</span>
+<span id="cb4-431"><a href="#cb4-431" aria-hidden="true" tabindex="-1"></a>the corrected operator the record is anticlimactic and that is the point: the</span>
+<span id="cb4-432"><a href="#cb4-432" aria-hidden="true" tabindex="-1"></a>**full §4.4 problem at n_dof = 6576 through four refinement levels (33 nodes) in</span>
+<span id="cb4-433"><a href="#cb4-433" aria-hidden="true" tabindex="-1"></a>5.7 s on a laptop**, peak RSS 131 MB against the 16 GB budget, with the DIR-035</span>
+<span id="cb4-434"><a href="#cb4-434" aria-hidden="true" tabindex="-1"></a><span class="in">`DiskSpillCold`</span> tier wired but **never touched** (0 evictions, 0 bytes spilled)</span>
+<span id="cb4-435"><a href="#cb4-435" aria-hidden="true" tabindex="-1"></a>— zero overflow, zero sentinel, <span class="in">`LEVEL_4_COMPLETED`</span>. The wall-time and RSS</span>
+<span id="cb4-436"><a href="#cb4-436" aria-hidden="true" tabindex="-1"></a>budgets and clean sentinel stops all still stand as engineering, but the</span>
+<span id="cb4-437"><a href="#cb4-437" aria-hidden="true" tabindex="-1"></a>faithful §4.4 problem never approaches them. Neither wall time nor memory is a</span>
+<span id="cb4-438"><a href="#cb4-438" aria-hidden="true" tabindex="-1"></a>binding constraint at the true 6D scale; the pre-fix campaign's entire</span>
+<span id="cb4-439"><a href="#cb4-439" aria-hidden="true" tabindex="-1"></a>resource narrative was an artifact of the mass bug (<span class="in">`MEMORY-OOM-ANALYSIS`</span>).</span></code><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></pre></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

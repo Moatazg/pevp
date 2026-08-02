@@ -1,0 +1,80 @@
+{
+  "schema_version": 4,
+  "problem": {
+    "name": "diffusion_2d_coefficient_3_3_2",
+    "d_param": 1,
+    "d_space": 2,
+    "n_dof": 3969
+  },
+  "config": {
+    "mode": "FirstK",
+    "max_levels": 8,
+    "t_pi": 0.21,
+    "t_lambda": 0.001,
+    "pruning_mode": "anchored_absolute",
+    "refinement_topology": "axis_aligned",
+    "n_eigs": 6
+  },
+  "outcome": {
+    "terminated_at_level": 1,
+    "ran_out": false,
+    "sentinel": "LEVEL_1_COMPLETED",
+    "wall_time_s": 0.15294901421293616,
+    "peak_rss_mb": 212.65625
+  },
+  "levels": [
+    {
+      "L": 0,
+      "n_nodes_total": 3,
+      "n_nodes_added_this_level": 3,
+      "n_flagged_edges": 1,
+      "k_per_snapshot": {
+        "min": 0,
+        "max": 0,
+        "mean": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "n": 0
+      },
+      "active_bytes": 0,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 212.65625,
+      "wall_time_at_level_s": 0.11364526208490133,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 1,
+      "n_nodes_total": 4,
+      "n_nodes_added_this_level": 1,
+      "n_flagged_edges": 0,
+      "k_per_snapshot": {
+        "min": 0,
+        "max": 0,
+        "mean": 0.0,
+        "p50": 0.0,
+        "p95": 0.0,
+        "n": 0
+      },
+      "active_bytes": 0,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 212.65625,
+      "wall_time_at_level_s": 0.1527618537656963,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    }
+  ],
+  "verdicts": {
+    "CERTIFIED": 2,
+    "REFINE": 4
+  },
+  "growth_fit": null,
+  "oom_autopsy": null,
+  "region_summary": null
+}

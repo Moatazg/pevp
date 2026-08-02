@@ -1,0 +1,1853 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.57">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>Dynamic domain decomposition – The adaptive-greedy parametric eigenvalue solver</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script>
+// Collapse sidebar sections on load; only expand the one with the active page.
+(function () {
+  function collapseSidebarSections() {
+    var sections = document.querySelectorAll(".sidebar-section");
+    var activeSection = null;
+    sections.forEach(function (sec) {
+      if (sec.querySelector(".sidebar-item-text.active, .sidebar-link.active")) {
+        activeSection = sec;
+      }
+    });
+    sections.forEach(function (sec) {
+      if (sec === activeSection) return;
+      sec.classList.remove("show");
+    });
+    // Sync aria-expanded on the toggle buttons.
+    document.querySelectorAll("[data-bs-target^='#quarto-sidebar-section']").forEach(function (btn) {
+      var target = document.querySelector(btn.getAttribute("data-bs-target"));
+      if (target) {
+        btn.setAttribute("aria-expanded", target.classList.contains("show") ? "true" : "false");
+      }
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", collapseSidebarSections);
+  } else {
+    collapseSidebarSections();
+  }
+})();
+</script>
+
+<script>
+// Per-level refinement-animation widget.
+// Auto-initialises every element matching `.level-scroll[data-frames]`.
+// data-frames: comma-separated image URLs (one per refinement level).
+// data-caption: template; "{i}" → frame index + data-level-start (default 0).
+(function () {
+  function init(el) {
+    var frames = (el.dataset.frames || "")
+      .split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+    if (frames.length === 0) return;
+    var captionTpl = el.dataset.caption || "L={i}";
+    var levelStart = parseInt(el.dataset.levelStart || "0", 10);
+    var img = el.querySelector("img.frame");
+    var slider = el.querySelector("input[type=range]");
+    var caption = el.querySelector(".caption .level");
+    if (!img || !slider || !caption) return;
+    slider.min = "0";
+    slider.max = String(frames.length - 1);
+    slider.step = "1";
+    if (!slider.value) slider.value = "0";
+    function render(idx) {
+      var i = Math.max(0, Math.min(frames.length - 1, idx));
+      img.src = frames[i];
+      caption.textContent = captionTpl.replace("{i}", String(i + levelStart));
+    }
+    slider.addEventListener("input", function () {
+      render(parseInt(slider.value, 10));
+    });
+    el.tabIndex = 0;
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") {
+        slider.value = String(Math.max(0, parseInt(slider.value, 10) - 1));
+        render(parseInt(slider.value, 10));
+        e.preventDefault();
+      } else if (e.key === "ArrowRight") {
+        slider.value = String(Math.min(frames.length - 1, parseInt(slider.value, 10) + 1));
+        render(parseInt(slider.value, 10));
+        e.preventDefault();
+      }
+    });
+    render(parseInt(slider.value, 10));
+  }
+  function initAll() {
+    var els = document.querySelectorAll(".level-scroll[data-frames]");
+    for (var i = 0; i < els.length; i++) init(els[i]);
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAll);
+  } else {
+    initAll();
+  }
+})();
+</script>
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../assets/level-scroll.css">
+</head>
+
+<body class="nav-sidebar docked nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">The adaptive-greedy parametric eigenvalue solver</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/Moatazg/pevp-rebuild"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../mechanisms.html">Mechanisms</a></li><li class="breadcrumb-item"><a href="../examples/domain-decomposition.html">Dynamic domain decomposition</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Validation</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/spectrum-samples.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Is the finite-element substrate trustworthy?</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/affine-cache-cross-check.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Affine-cache cross-check</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Demonstrations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../demonstrations.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/diffusion-3-3-2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D diffusion eigenproblem with a one-parameter coefficient</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/diffusion-3-3-3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D diffusion eigenproblem with a two-parameter coefficient</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/elasticity-2d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D plane-stress elasticity eigenproblem</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/elasticity-4-4-campaign.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">§4.4 6D campaign — quality demonstration at scale</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/elasticity-4-4-evidence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">§4.4 6D campaign — the correctness evidence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/rom-vs-dense.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ROM vs dense FE sweep</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/two-chamber-resonator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Two-Chamber Resonator — the Minimal Crossing Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Mechanisms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../mechanisms.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/crossing-and-projection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Persistent Π Failures at Eigenvalue Crossings</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/domain-decomposition.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Dynamic domain decomposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sensitivity</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../sensitivity.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/mesh-independence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Mesh independence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/tolerance-perturbation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Tolerance perturbation — how load-bearing is the threshold choice?</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/knob-sweep.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Knob sweep — how sensitive is the grid to the thresholds?</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Studies</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../studies.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../why-this-algorithm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Why the adaptive-greedy algorithm for parametric eigenvalue problems</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../method-comparison-1d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Methods for the 1D Parametric Eigenvalue Problem: A Comparison Framework</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../strategy-comparison.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Refinement strategy A/B: edge-bisection vs hierarchical (measured)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../coverage-policy-validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cost-Accuracy Validation of the Composite Refinement Policy π⋆</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../runtime-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Runtime analysis: the one-path verdict vs the retired span/tracking modes (measured)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parallel-execution.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Real Parallel Execution of Domain-Decomposition Refinement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../region-parallel-speedup.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Projected Parallel Speedup of Dynamic Domain Decomposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Methodology</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">How it works — the algorithm end to end</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Correctness Techniques in <code>pevp-rebuild</code></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reference correctness-demonstration techniques</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Acknowledged issues in the adaptive-greedy pEVP algorithm</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Algorithm Parity Audit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Rebuild vs dissertation — the three-way divergence record</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open Methodological Questions for Validating the Rebuilt pEVP Algorithm</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open Research and Architecture Problems for the pEVP Rebuild</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open-Problems Status Register</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">The partial sparse grid, formally — admissible subtree ↔︎ lower set, directional surplus, hanging nodes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Classifying Eigenvalue-Crossing Type Beyond the Block Matrix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sheet decomposition: matching-driven hypersurfaces and the plaquette holonomy certificate</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Dynamic Domain Decomposition of the Parameter Space</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Hierarchical refinement strategy and the one-sided parent↔︎child verdict</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#the-splitfreezehold-criterion" id="toc-the-splitfreezehold-criterion" class="nav-link active" data-scroll-target="#the-splitfreezehold-criterion">The split/freeze/hold criterion</a></li>
+  <li><a href="#d-demonstration-synthetic-two-regime-problem" id="toc-d-demonstration-synthetic-two-regime-problem" class="nav-link" data-scroll-target="#d-demonstration-synthetic-two-regime-problem">1D demonstration — synthetic two-regime problem</a>
+  <ul class="collapse">
+  <li><a href="#setup" id="toc-setup" class="nav-link" data-scroll-target="#setup">Setup</a></li>
+  <li><a href="#level-by-level-decomposition" id="toc-level-by-level-decomposition" class="nav-link" data-scroll-target="#level-by-level-decomposition">Level-by-level decomposition</a></li>
+  <li><a href="#region-tree-evolution" id="toc-region-tree-evolution" class="nav-link" data-scroll-target="#region-tree-evolution">Region-tree evolution</a></li>
+  <li><a href="#per-region-memory-and-pod-rank" id="toc-per-region-memory-and-pod-rank" class="nav-link" data-scroll-target="#per-region-memory-and-pod-rank">Per-region memory and POD-rank</a></li>
+  <li><a href="#splitfreezehold-decision-timeline" id="toc-splitfreezehold-decision-timeline" class="nav-link" data-scroll-target="#splitfreezehold-decision-timeline">Split/freeze/hold decision timeline</a></li>
+  <li><a href="#interface-cost" id="toc-interface-cost" class="nav-link" data-scroll-target="#interface-cost">Interface cost</a></li>
+  <li><a href="#parallel-speedup-1d" id="toc-parallel-speedup-1d" class="nav-link" data-scroll-target="#parallel-speedup-1d">Parallel speedup — 1D</a></li>
+  </ul></li>
+  <li><a href="#d-demonstration-3.3.3-diffusion" id="toc-d-demonstration-3.3.3-diffusion" class="nav-link" data-scroll-target="#d-demonstration-3.3.3-diffusion">2D demonstration — §3.3.3 diffusion</a>
+  <ul class="collapse">
+  <li><a href="#setup-1" id="toc-setup-1" class="nav-link" data-scroll-target="#setup-1">Setup</a></li>
+  <li><a href="#final-partition" id="toc-final-partition" class="nav-link" data-scroll-target="#final-partition">Final partition</a></li>
+  <li><a href="#level-by-level-decisions-mesh_n15-n_dof-900" id="toc-level-by-level-decisions-mesh_n15-n_dof-900" class="nav-link" data-scroll-target="#level-by-level-decisions-mesh_n15-n_dof-900">Level-by-level decisions (mesh_n=15, n_dof ≈ 900)</a></li>
+  <li><a href="#rank-reduction-mesh_n15" id="toc-rank-reduction-mesh_n15" class="nav-link" data-scroll-target="#rank-reduction-mesh_n15">Rank reduction (mesh_n=15)</a></li>
+  <li><a href="#parallel-speedup-the-two-regime-story" id="toc-parallel-speedup-the-two-regime-story" class="nav-link" data-scroll-target="#parallel-speedup-the-two-regime-story">Parallel speedup — the two-regime story</a></li>
+  </ul></li>
+  <li><a href="#scope" id="toc-scope" class="nav-link" data-scroll-target="#scope">Scope</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../mechanisms.html">Mechanisms</a></li><li class="breadcrumb-item"><a href="../examples/domain-decomposition.html">Dynamic domain decomposition</a></li></ol></nav>
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">Dynamic domain decomposition</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>An adaptive-greedy eigensurface scan stores eigenvectors at every grid node it visits. As the grid grows, those snapshots pile into a single global reduced basis — a basis that has to span <strong>all</strong> the behaviour it has seen so far. When the eigensurface is only <em>piecewise</em> low-rank (the typical case: a smooth background rank plus a concentrated burst wherever eigenvalue curves approach one another), the global basis pays for all the bursts at once. Its rank equals roughly the <em>sum</em> of per-regime ranks, not the <em>maximum</em>.</p>
+<p><strong>Parameter-domain decomposition</strong> fixes this by splitting the parameter box dynamically into regions, each with its own snapshot store. A region that has certified convergence stops accumulating snapshots; only the still-active regions keep refining. The target: peak per-region rank ≈ <strong>max over regimes</strong>, not sum.</p>
+<p>There are two payoffs:</p>
+<ol type="1">
+<li><strong>Leaner storage.</strong> Each region’s POD basis needs to capture only its local behaviour. Regions that freeze early keep a small, fixed-rank basis while the rest of the box refines.</li>
+<li><strong>Parallel speedup.</strong> Once two regions are independent — no shared flagged edges — their midpoint eigensolves can run simultaneously on separate processes. The critical-path length is the <em>busiest</em> region’s work, not the <em>total</em> work.</li>
+</ol>
+<p>This page demonstrates both effects concretely, first on a synthetic 1D two-regime problem, then on the canonical §3.3.3 2D diffusion benchmark. For the full design rationale and the algorithmic contract, see <a href="../methodology-unpublished.html">parameter-domain-decomposition.md</a>.</p>
+<hr>
+<section id="the-splitfreezehold-criterion" class="level2">
+<h2 class="anchored" data-anchor-id="the-splitfreezehold-criterion">The split/freeze/hold criterion</h2>
+<p>At the end of each refinement level, every active region receives one of three decisions — a deterministic, pure function of the public grid state:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 47%">
+<col style="width: 52%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;">Decision</th>
+<th style="text-align: left;">Condition</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;"><strong>FREEZE</strong></td>
+<td style="text-align: left;"><span class="math inline">F = 0</span>: no flagged interior edges — the region is certified, exits the traversal permanently</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>SPLIT</strong></td>
+<td style="text-align: left;"><span class="math inline">\rho \ge \rho_{\min}</span> <strong>and</strong> <span class="math inline">F \ge f_{\min}</span> <strong>and</strong> <span class="math inline">\Delta r &gt; 0</span> <strong>and</strong> age <span class="math inline">\ge</span> cooldown <strong>and</strong> an interior cut node exists</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;"><strong>HOLD</strong></td>
+<td style="text-align: left;">everything else — keep refining in place</td>
+</tr>
+</tbody>
+</table>
+<p>where <span class="math inline">\rho = F/E</span> is the refinement density (flagged edges over interior edges) and <span class="math inline">\Delta r</span> is the local POD rank growth since the previous level. Density is the <strong>primary discriminator</strong>: a region splits when a large fraction of its interior is still flagged and its basis is still growing. A low-density region that happens to have a few flagged edges holds rather than cuts prematurely.</p>
+<p>The cut is placed at the <strong>existing graph node</strong> nearest the flagged-edge centroid along the busiest parameter axis. No new eigensolve is needed at split time.</p>
+<hr>
+</section>
+<section id="d-demonstration-synthetic-two-regime-problem" class="level2">
+<h2 class="anchored" data-anchor-id="d-demonstration-synthetic-two-regime-problem">1D demonstration — synthetic two-regime problem</h2>
+<section id="setup" class="level3">
+<h3 class="anchored" data-anchor-id="setup">Setup</h3>
+<p>A synthetic 1D eigenproblem designed so the two halves of <span class="math inline">[0, 1]</span> behave differently by construction:</p>
+<ul>
+<li><strong>Left half</strong> (<span class="math inline">\mu \le 0.5</span>): low-rank — eigenvectors are fixed basis vectors, so the a-posteriori verdict certifies immediately and the region <strong>freezes</strong>.</li>
+<li><strong>Right half</strong> (<span class="math inline">\mu &gt; 0.5</span>): refinement-heavy — a partial rotation makes the verdict flag; one band tilts into a <span class="math inline">\mu</span>-dependent complementary direction, so the local basis rank climbs as the region refines.</li>
+</ul>
+</section>
+<section id="level-by-level-decomposition" class="level3">
+<h3 class="anchored" data-anchor-id="level-by-level-decomposition">Level-by-level decomposition</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 11%">
+<col style="width: 22%">
+<col style="width: 23%">
+<col style="width: 14%">
+<col style="width: 28%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">Level</th>
+<th style="text-align: center;">nodes (+new)</th>
+<th style="text-align: center;">flagged edges</th>
+<th style="text-align: left;">regions</th>
+<th style="text-align: center;">interface budget</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">L0</td>
+<td style="text-align: center;">3 (+3)</td>
+<td style="text-align: center;">1</td>
+<td style="text-align: left;"><code>R0 [0, 1]</code> active</td>
+<td style="text-align: center;">0.00</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">L1</td>
+<td style="text-align: center;">4 (+1)</td>
+<td style="text-align: center;">2</td>
+<td style="text-align: left;"><code>R0 [0, 1]</code> active</td>
+<td style="text-align: center;">0.00</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">L2</td>
+<td style="text-align: center;">6 (+2)</td>
+<td style="text-align: center;">0</td>
+<td style="text-align: left;"><code>R1 [0, 0.75]</code> frozen + <code>R2 [0.75, 1]</code> frozen</td>
+<td style="text-align: center;">0.33</td>
+</tr>
+</tbody>
+</table>
+<p>The interface budget jumps from 0 to <span class="math inline">1/3</span> once the split creates the shared boundary node at <span class="math inline">\mu = 0.75</span>. In 1D a boundary is a single point, so this stays small by construction.</p>
+</section>
+<section id="region-tree-evolution" class="level3">
+<h3 class="anchored" data-anchor-id="region-tree-evolution">Region-tree evolution</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/domain-decomposition/region-tree-evolution.png" class="img-fluid figure-img"></p>
+<figcaption>Region-tree evolution — 1D. Each horizontal strip is one refinement level, segmented at region boundaries and coloured by status (blue = active, grey = frozen). The root region holds, then splits at <span class="math inline">\mu = 0.75</span>; both children certify and freeze the next level.</figcaption>
+</figure>
+</div>
+</section>
+<section id="per-region-memory-and-pod-rank" class="level3">
+<h3 class="anchored" data-anchor-id="per-region-memory-and-pod-rank">Per-region memory and POD-rank</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/domain-decomposition/region-memory-rank.png" class="img-fluid figure-img"></p>
+<figcaption>Per-region memory and POD-rank — 1D. Per-region basis rank (top) and snapshot bytes (bottom), grouped by level. The dashed line is the single-store rank — the rank a global basis over every snapshot would need. The core payoff: max per-region rank sits <em>below</em> that line.</figcaption>
+</figure>
+</div>
+<pre><code>peak_subdomain_count   2
+max_region_pod_rank    6      ← max over both regions
+single_store_rank      7      ← what a global basis would need
+rank_reduction         1</code></pre>
+<p>Per region, level by level:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">Level</th>
+<th style="text-align: left;">region</th>
+<th style="text-align: left;">status</th>
+<th style="text-align: center;">POD-rank</th>
+<th style="text-align: center;">snapshots</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">L0</td>
+<td style="text-align: left;">R0 <code>[0, 1]</code></td>
+<td style="text-align: left;">active</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">3</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">L1</td>
+<td style="text-align: left;">R0 <code>[0, 1]</code></td>
+<td style="text-align: left;">active</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">4</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">L2</td>
+<td style="text-align: left;">R1 <code>[0, 0.75]</code></td>
+<td style="text-align: left;">frozen</td>
+<td style="text-align: center;">5</td>
+<td style="text-align: center;">3</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">L2</td>
+<td style="text-align: left;">R2 <code>[0.75, 1]</code></td>
+<td style="text-align: left;">frozen</td>
+<td style="text-align: center;">6</td>
+<td style="text-align: center;">3</td>
+</tr>
+</tbody>
+</table>
+<p>R2 carries the rank-6 regime; R1 stays at 5. The max-over-regions is 6, one below the single-store rank 7. Small numbers, but they can be checked by hand — each region’s basis reflects only its local behaviour.</p>
+</section>
+<section id="splitfreezehold-decision-timeline" class="level3">
+<h3 class="anchored" data-anchor-id="splitfreezehold-decision-timeline">Split/freeze/hold decision timeline</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/domain-decomposition/region-decision-timeline.png" class="img-fluid figure-img"></p>
+<figcaption>Split/freeze/hold decision timeline — 1D. Every region’s end-of-level decision, annotated with the driving term: <span class="math inline">\rho</span> (refinement density) and <span class="math inline">\Delta r</span> (rank growth) for SPLIT/HOLD; <span class="math inline">F</span> (flagged-edge count) for FREEZE.</figcaption>
+</figure>
+</div>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">Level</th>
+<th style="text-align: left;">region</th>
+<th style="text-align: left;">action</th>
+<th style="text-align: center;"><span class="math inline">\rho</span></th>
+<th style="text-align: center;">flagged/edges</th>
+<th style="text-align: center;"><span class="math inline">\Delta r</span></th>
+<th style="text-align: left;">cut</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">L0</td>
+<td style="text-align: left;">R0</td>
+<td style="text-align: left;"><strong>HOLD</strong></td>
+<td style="text-align: center;">0.50</td>
+<td style="text-align: center;">1/2</td>
+<td style="text-align: center;">+5</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">L1</td>
+<td style="text-align: left;">R0</td>
+<td style="text-align: left;"><strong>SPLIT</strong></td>
+<td style="text-align: center;">0.67</td>
+<td style="text-align: center;">2/3</td>
+<td style="text-align: center;">+1</td>
+<td style="text-align: left;">axis 0 @ <span class="math inline">\mu = 0.75</span></td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">L2</td>
+<td style="text-align: left;">R1</td>
+<td style="text-align: left;"><strong>FREEZE</strong></td>
+<td style="text-align: center;">0.00</td>
+<td style="text-align: center;">0/2</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">L2</td>
+<td style="text-align: left;">R2</td>
+<td style="text-align: left;"><strong>FREEZE</strong></td>
+<td style="text-align: center;">0.00</td>
+<td style="text-align: center;">0/2</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: left;">—</td>
+</tr>
+</tbody>
+</table>
+<p>L0 holds: density 0.5 is below the split threshold, so the region keeps refining in place. L1 splits: density climbs to 0.67 and rank is still growing (<span class="math inline">\Delta r = 1</span>), so it cuts at the existing interior node nearest the flagged-edge centroid. L2 both children have <span class="math inline">F = 0</span> — fully certified — and freeze permanently.</p>
+</section>
+<section id="interface-cost" class="level3">
+<h3 class="anchored" data-anchor-id="interface-cost">Interface cost</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/domain-decomposition/interface-budget.png" class="img-fluid figure-img"></p>
+<figcaption>Interface budget — 1D. Fraction of nodes on a region boundary per level. Tiny in 1D (a boundary is a single point); the scalability question for higher dimensions is how fast this grows.</figcaption>
+</figure>
+</div>
+</section>
+<section id="parallel-speedup-1d" class="level3">
+<h3 class="anchored" data-anchor-id="parallel-speedup-1d">Parallel speedup — 1D</h3>
+<p>With two independent regions, the midpoint eigensolves within each region can run on separate worker processes. The per-level speedup model is <span class="math inline">S_\ell = \Sigma_r w_{r,\ell} / \max_r w_{r,\ell}</span> (total work over critical path). Over the whole run:</p>
+<pre><code>projected speedup   1.20×   (eigensolve-count model)
+measured speedup    1.58×   (wall-clock, actual parallel run)</code></pre>
+<p>Measured speedup exceeds projected here because the 1D problem’s eigensolves are so small that forking overhead matters less — the two workers genuinely overlap their work.</p>
+<hr>
+</section>
+</section>
+<section id="d-demonstration-3.3.3-diffusion" class="level2">
+<h2 class="anchored" data-anchor-id="d-demonstration-3.3.3-diffusion">2D demonstration — §3.3.3 diffusion</h2>
+<section id="setup-1" class="level3">
+<h3 class="anchored" data-anchor-id="setup-1">Setup</h3>
+<p>The §3.3.3 two-parameter diffusion problem: <span class="math inline">-\nabla \cdot (c(\mu) \nabla u) = \lambda u</span> on <span class="math inline">[0,1]^2</span> with tensor coefficient <span class="math inline">c(\mu) = \bigl[\begin{smallmatrix}\mu_0^{-2} &amp; 1 \\ 1 &amp; \mu_1^{-2}\end{smallmatrix}\bigr]</span>, parameter box <span class="math inline">\Omega = [0.8, 1.05]^2</span>, <span class="math inline">n_{\rm eigs} = 8</span>.</p>
+<p>The 2-D benchmark carries a true crossing of bands 3–4 near <span class="math inline">\mu \approx (0.973, 0.973)</span> on the symmetry diagonal, and a small-gap pair at bands 4–7 in the right half of the box. Refinement concentrates near the crossing, creating a naturally two-regime structure suitable for decomposition.</p>
+</section>
+<section id="final-partition" class="level3">
+<h3 class="anchored" data-anchor-id="final-partition">Final partition</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/domain-decomposition/region-partition-2d.png" class="img-fluid figure-img"></p>
+<figcaption>Final region partition — 2D diffusion. Three axis-aligned subdomains after two splits along the <span class="math inline">\mu_0</span> axis. R1 (left) freezes early; R3 and R4 (middle and far right) refine toward the crossing and then freeze.</figcaption>
+</figure>
+</div>
+<p>The algorithm makes two cuts, both along <span class="math inline">\mu_0</span>: flagged edges are concentrated where <span class="math inline">\mu_0</span> is large (near the crossing), so the busiest axis is <span class="math inline">\mu_0</span> at both decision points.</p>
+</section>
+<section id="level-by-level-decisions-mesh_n15-n_dof-900" class="level3">
+<h3 class="anchored" data-anchor-id="level-by-level-decisions-mesh_n15-n_dof-900">Level-by-level decisions (mesh_n=15, n_dof ≈ 900)</h3>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 9%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 11%">
+<col style="width: 21%">
+<col style="width: 16%">
+<col style="width: 7%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: right;">Level</th>
+<th style="text-align: left;">region</th>
+<th style="text-align: left;">status</th>
+<th style="text-align: left;">action</th>
+<th style="text-align: center;"><span class="math inline">\rho</span></th>
+<th style="text-align: center;">flagged/edges</th>
+<th style="text-align: center;"><span class="math inline">\Delta r</span></th>
+<th style="text-align: left;">cut</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">L0</td>
+<td style="text-align: left;">R0 <code>[0.80, 0.80]–[1.05, 1.05]</code></td>
+<td style="text-align: left;">active</td>
+<td style="text-align: left;"><strong>SPLIT</strong></td>
+<td style="text-align: center;">0.25</td>
+<td style="text-align: center;">3/12</td>
+<td style="text-align: center;">+31</td>
+<td style="text-align: left;">axis 0 @ <span class="math inline">\mu_0 = 0.925</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">L1</td>
+<td style="text-align: left;">R1 <code>[0.80, 0.80]–[0.925, 1.05]</code></td>
+<td style="text-align: left;">→ frozen</td>
+<td style="text-align: left;"><strong>FREEZE</strong></td>
+<td style="text-align: center;">0.00</td>
+<td style="text-align: center;">0/2</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">L1</td>
+<td style="text-align: left;">R2 <code>[0.925, 0.80]–[1.05, 1.05]</code></td>
+<td style="text-align: left;">active</td>
+<td style="text-align: left;"><strong>SPLIT</strong></td>
+<td style="text-align: center;">0.10</td>
+<td style="text-align: center;">1/10</td>
+<td style="text-align: center;">+29</td>
+<td style="text-align: left;">axis 0 @ <span class="math inline">\mu_0 = 0.9875</span></td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">L2</td>
+<td style="text-align: left;">R3 <code>[0.925, 0.80]–[0.9875, 1.05]</code></td>
+<td style="text-align: left;">→ frozen</td>
+<td style="text-align: left;"><strong>FREEZE</strong></td>
+<td style="text-align: center;">0.00</td>
+<td style="text-align: center;">0/2</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: left;">—</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">L2</td>
+<td style="text-align: left;">R4 <code>[0.9875, 0.80]–[1.05, 1.05]</code></td>
+<td style="text-align: left;">→ frozen</td>
+<td style="text-align: left;"><strong>FREEZE</strong></td>
+<td style="text-align: center;">0.00</td>
+<td style="text-align: center;">0/6</td>
+<td style="text-align: center;">—</td>
+<td style="text-align: left;">—</td>
+</tr>
+</tbody>
+</table>
+<p>Reading the sequence: the box splits off its left third at L0 (relatively clean region, certifies immediately at L1), then the right portion splits again at L1 (zooming toward the crossing), and both sub-regions certify at L2.</p>
+</section>
+<section id="rank-reduction-mesh_n15" class="level3">
+<h3 class="anchored" data-anchor-id="rank-reduction-mesh_n15">Rank reduction (mesh_n=15)</h3>
+<p>Per-region POD-rank at termination:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: left;">region</th>
+<th style="text-align: left;">bounds (<span class="math inline">\mu_0</span>)</th>
+<th style="text-align: left;">status</th>
+<th style="text-align: center;">POD-rank</th>
+<th style="text-align: center;">snapshots</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">R1</td>
+<td style="text-align: left;">[0.80, 0.925]</td>
+<td style="text-align: left;">frozen</td>
+<td style="text-align: center;">18</td>
+<td style="text-align: center;">3</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">R3</td>
+<td style="text-align: left;">[0.925, 0.9875]</td>
+<td style="text-align: left;">frozen</td>
+<td style="text-align: center;">19</td>
+<td style="text-align: center;">3</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">R4</td>
+<td style="text-align: left;">[0.9875, 1.05]</td>
+<td style="text-align: left;">frozen</td>
+<td style="text-align: center;">23</td>
+<td style="text-align: center;">7</td>
+</tr>
+</tbody>
+</table>
+<pre><code>peak_subdomain_count   3
+max_region_pod_rank   23      ← worst region (near the crossing)
+single_store_rank     31      ← what a single global basis needs
+rank_reduction         8      ← 26% savings</code></pre>
+<p>R4 (containing the crossing at <span class="math inline">\mu_0 \approx 0.973</span>) carries the highest rank. R1 and R3 (cleaner regions) are leaner. A global basis would pool all 13 snapshots into one store and reach rank 31.</p>
+</section>
+<section id="parallel-speedup-the-two-regime-story" class="level3">
+<h3 class="anchored" data-anchor-id="parallel-speedup-the-two-regime-story">Parallel speedup — the two-regime story</h3>
+<p>The decomposition structure (which regions form, where the cuts land, rank savings) is the same regardless of mesh resolution. The <strong>parallel payoff</strong> depends on problem size:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th style="text-align: left;"></th>
+<th style="text-align: center;">mesh_n=15 (n_dof ≈ 900)</th>
+<th style="text-align: center;">mesh_n=64 (n_dof ≈ 16k)</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: left;">peak subdomains</td>
+<td style="text-align: center;">3</td>
+<td style="text-align: center;">4</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">max region POD-rank</td>
+<td style="text-align: center;">23</td>
+<td style="text-align: center;">22</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">single-store rank</td>
+<td style="text-align: center;">31</td>
+<td style="text-align: center;">31</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;">rank reduction</td>
+<td style="text-align: center;">8 (26%)</td>
+<td style="text-align: center;">9 (29%)</td>
+</tr>
+<tr class="odd">
+<td style="text-align: left;">projected speedup</td>
+<td style="text-align: center;">1.09×</td>
+<td style="text-align: center;">1.14×</td>
+</tr>
+<tr class="even">
+<td style="text-align: left;"><strong>measured speedup</strong></td>
+<td style="text-align: center;"><strong>≈1.00×</strong> (overhead-bound)</td>
+<td style="text-align: center;"><strong>1.21×</strong> (win regime)</td>
+</tr>
+</tbody>
+</table>
+<p>At mesh_n=15, each eigensolve takes only a few milliseconds — faster than the process-fork overhead needed to distribute work across cores. The measured speedup is ≈1.00×. At mesh_n=64 (n_dof ≈ 16k), eigensolves are the dominant cost; process-fork overhead amortises and the measured speedup reaches <strong>1.21×</strong>.</p>
+<p>The crossover is measured at approximately n_dof ≈ 5k (DIR-055C, see <a href="../parallel-execution.html">parallel-execution.md</a> for the three-regime story). The §3.3.3 problem at mesh_n=64 sits clearly in the win regime: the projected model (1.14×) and the measured wall-clock (1.21×) are in close agreement.</p>
+<hr>
+</section>
+</section>
+<section id="scope" class="level2">
+<h2 class="anchored" data-anchor-id="scope">Scope</h2>
+<p><strong>Works at any d_param:</strong></p>
+<ul>
+<li>The refinement loop decomposition (split/freeze/hold decisions, per-region snapshot stores, region stats in the run report)</li>
+<li>Parallel eigensolve execution within and across regions</li>
+<li>All run-report telemetry (<code>region_summary</code>, per-level <code>regions</code> + <code>region_decisions</code>, <code>interface_budget_series</code>)</li>
+</ul>
+<p><strong>Certified ROM accuracy over the decomposed store (Tier 3).</strong> The last deferred capability closed: <code>evaluate_rom</code> now works over a decomposed store at every <span class="math inline">d_{\mathrm{param}}</span>. The nearest-<span class="math inline">k</span> basis pool may straddle region boundaries — that is sound because the joint <span class="math inline">M(\mu)</span>-orthonormalisation consumes only the <em>span</em> of the stacked snapshot blocks, which is invariant to each region POD’s internal gauge; reads go through the resolver (boundary copies at full fidelity), and pool-exhaustion deficiency falls back to a rank-revealing Gram eigendecomposition. Certified on live decomposed runs with forced eviction (per-region cold PODs exercised, not just raw active blocks):</p>
+<ul>
+<li><strong>2D §3.3.3 bed</strong> (4 region leaves): eigenvalue rel-err ≤ 1.3e-8, subspace angle ≤ 4.2e-5 rad — far inside the pinned §3.3.3 ceilings (2.5e-4 / 0.015 rad); delta vs the single-store ROM ≤ 7.5e-5.</li>
+<li><strong>6D bed</strong> (the ROM-ceiling bed, 10 leaves, forced eviction): rel-err ≤ 1.8e-5 vs the 2e-3 ceiling, angle ≤ 2.0e-3 rad vs 3e-2; delta vs single-store ≤ 1.1e-4.</li>
+</ul>
+<p>So the decomposition’s rank savings do not cost measurable surrogate accuracy: the decomposed ROM answers queries as accurately as the single-store one, with the delta between them measured, not assumed. <strong>Measured at 6D (DIR-113, faithful operator).</strong> The high-dimensional rendered view is no longer deferred: the <a href="../examples/elasticity-4-4-campaign.html">§4.4 6D campaign page</a> shows the decomposition on the real dissertation problem at n_dof = 1846 on the DIR-112-corrected operator — 5 splits, 4 freezes, peak 6 subdomains, single-store POD rank <strong>35</strong> vs max per-region <strong>22</strong> (−37 %), and a refinement trajectory identical to serial <em>with verdicts byte-identical</em>. Two honest faithful caveats replace the pre-fix headline: the interface budget climbs to <strong>0.31</strong> by L4 (not ≤0.1 — the sparse 32-node grid puts more nodes on boundaries), and the parallel pool goes <strong>overhead-bound</strong> (raw wall 0.70×) — at the true ~10-mode window solves cost milliseconds, so the 14 workers lose to serial. The pre-fix DIR-110 numbers (rank 1311→862, budget ≤0.096, 2.43×) were driven by the fake ~380-mode window’s heavy solves.</p>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+  const viewSource = window.document.getElementById('quarto-view-source') ||
+                     window.document.getElementById('quarto-code-tools-source');
+  if (viewSource) {
+    const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+    viewSource.addEventListener("click", function(e) {
+      if (sourceUrl) {
+        // rstudio viewer pane
+        if (/\bcapabilities=\b/.test(window.location)) {
+          window.open(sourceUrl);
+        } else {
+          window.location.href = sourceUrl;
+        }
+      } else {
+        const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+        modal.show();
+      }
+      return false;
+    });
+  }
+  function toggleCodeHandler(show) {
+    return function(e) {
+      const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+      for (let i=0; i<detailsSrc.length; i++) {
+        const details = detailsSrc[i].parentElement;
+        if (show) {
+          details.open = true;
+        } else {
+          details.removeAttribute("open");
+        }
+      }
+      const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+      const fromCls = show ? "hidden" : "unhidden";
+      const toCls = show ? "unhidden" : "hidden";
+      for (let i=0; i<cellCodeDivs.length; i++) {
+        const codeDiv = cellCodeDivs[i];
+        if (codeDiv.classList.contains(fromCls)) {
+          codeDiv.classList.remove(fromCls);
+          codeDiv.classList.add(toCls);
+        } 
+      }
+      return false;
+    }
+  }
+  const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+  if (hideAllCode) {
+    hideAllCode.addEventListener("click", toggleCodeHandler(false));
+  }
+  const showAllCode = window.document.getElementById("quarto-show-all-code");
+  if (showAllCode) {
+    showAllCode.addEventListener("click", toggleCodeHandler(true));
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="sourceCode" id="cb4" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "Dynamic domain decomposition"</span></span>
+<span id="cb4-3"><a href="#cb4-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb4-4"><a href="#cb4-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-5"><a href="#cb4-5" aria-hidden="true" tabindex="-1"></a>An adaptive-greedy eigensurface scan stores eigenvectors at every grid node it</span>
+<span id="cb4-6"><a href="#cb4-6" aria-hidden="true" tabindex="-1"></a>visits. As the grid grows, those snapshots pile into a single global reduced</span>
+<span id="cb4-7"><a href="#cb4-7" aria-hidden="true" tabindex="-1"></a>basis — a basis that has to span **all** the behaviour it has seen so far.</span>
+<span id="cb4-8"><a href="#cb4-8" aria-hidden="true" tabindex="-1"></a>When the eigensurface is only *piecewise* low-rank (the typical case: a smooth</span>
+<span id="cb4-9"><a href="#cb4-9" aria-hidden="true" tabindex="-1"></a>background rank plus a concentrated burst wherever eigenvalue curves approach</span>
+<span id="cb4-10"><a href="#cb4-10" aria-hidden="true" tabindex="-1"></a>one another), the global basis pays for all the bursts at once. Its rank equals</span>
+<span id="cb4-11"><a href="#cb4-11" aria-hidden="true" tabindex="-1"></a>roughly the *sum* of per-regime ranks, not the *maximum*.</span>
+<span id="cb4-12"><a href="#cb4-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-13"><a href="#cb4-13" aria-hidden="true" tabindex="-1"></a>**Parameter-domain decomposition** fixes this by splitting the parameter box</span>
+<span id="cb4-14"><a href="#cb4-14" aria-hidden="true" tabindex="-1"></a>dynamically into regions, each with its own snapshot store. A region that has</span>
+<span id="cb4-15"><a href="#cb4-15" aria-hidden="true" tabindex="-1"></a>certified convergence stops accumulating snapshots; only the still-active</span>
+<span id="cb4-16"><a href="#cb4-16" aria-hidden="true" tabindex="-1"></a>regions keep refining. The target: peak per-region rank ≈ **max over regimes**,</span>
+<span id="cb4-17"><a href="#cb4-17" aria-hidden="true" tabindex="-1"></a>not sum.</span>
+<span id="cb4-18"><a href="#cb4-18" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-19"><a href="#cb4-19" aria-hidden="true" tabindex="-1"></a>There are two payoffs:</span>
+<span id="cb4-20"><a href="#cb4-20" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-21"><a href="#cb4-21" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Leaner storage.** Each region's POD basis needs to capture only its local</span>
+<span id="cb4-22"><a href="#cb4-22" aria-hidden="true" tabindex="-1"></a>   behaviour. Regions that freeze early keep a small, fixed-rank basis while the</span>
+<span id="cb4-23"><a href="#cb4-23" aria-hidden="true" tabindex="-1"></a>   rest of the box refines.</span>
+<span id="cb4-24"><a href="#cb4-24" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Parallel speedup.** Once two regions are independent — no shared flagged</span>
+<span id="cb4-25"><a href="#cb4-25" aria-hidden="true" tabindex="-1"></a>   edges — their midpoint eigensolves can run simultaneously on separate</span>
+<span id="cb4-26"><a href="#cb4-26" aria-hidden="true" tabindex="-1"></a>   processes. The critical-path length is the *busiest* region's work, not the</span>
+<span id="cb4-27"><a href="#cb4-27" aria-hidden="true" tabindex="-1"></a>   *total* work.</span>
+<span id="cb4-28"><a href="#cb4-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-29"><a href="#cb4-29" aria-hidden="true" tabindex="-1"></a>This page demonstrates both effects concretely, first on a synthetic 1D</span>
+<span id="cb4-30"><a href="#cb4-30" aria-hidden="true" tabindex="-1"></a>two-regime problem, then on the canonical §3.3.3 2D diffusion</span>
+<span id="cb4-31"><a href="#cb4-31" aria-hidden="true" tabindex="-1"></a>benchmark. For the full design rationale and the algorithmic contract, see</span>
+<span id="cb4-32"><a href="#cb4-32" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">parameter-domain-decomposition.md</span><span class="co">](../parameter-domain-decomposition.md)</span>.</span>
+<span id="cb4-33"><a href="#cb4-33" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-34"><a href="#cb4-34" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb4-35"><a href="#cb4-35" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-36"><a href="#cb4-36" aria-hidden="true" tabindex="-1"></a><span class="fu">## The split/freeze/hold criterion</span></span>
+<span id="cb4-37"><a href="#cb4-37" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-38"><a href="#cb4-38" aria-hidden="true" tabindex="-1"></a>At the end of each refinement level, every active region receives one of three</span>
+<span id="cb4-39"><a href="#cb4-39" aria-hidden="true" tabindex="-1"></a>decisions — a deterministic, pure function of the public grid state:</span>
+<span id="cb4-40"><a href="#cb4-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-41"><a href="#cb4-41" aria-hidden="true" tabindex="-1"></a>| Decision | Condition |</span>
+<span id="cb4-42"><a href="#cb4-42" aria-hidden="true" tabindex="-1"></a>|:---------|:----------|</span>
+<span id="cb4-43"><a href="#cb4-43" aria-hidden="true" tabindex="-1"></a>| **FREEZE** | $F = 0$: no flagged interior edges — the region is certified, exits the traversal permanently |</span>
+<span id="cb4-44"><a href="#cb4-44" aria-hidden="true" tabindex="-1"></a>| **SPLIT** | $\rho \ge \rho_{\min}$ **and** $F \ge f_{\min}$ **and** $\Delta r &gt; 0$ **and** age $\ge$ cooldown **and** an interior cut node exists |</span>
+<span id="cb4-45"><a href="#cb4-45" aria-hidden="true" tabindex="-1"></a>| **HOLD** | everything else — keep refining in place |</span>
+<span id="cb4-46"><a href="#cb4-46" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-47"><a href="#cb4-47" aria-hidden="true" tabindex="-1"></a>where $\rho = F/E$ is the refinement density (flagged edges over interior</span>
+<span id="cb4-48"><a href="#cb4-48" aria-hidden="true" tabindex="-1"></a>edges) and $\Delta r$ is the local POD rank growth since the previous level.</span>
+<span id="cb4-49"><a href="#cb4-49" aria-hidden="true" tabindex="-1"></a>Density is the **primary discriminator**: a region splits when a large fraction</span>
+<span id="cb4-50"><a href="#cb4-50" aria-hidden="true" tabindex="-1"></a>of its interior is still flagged and its basis is still growing. A low-density</span>
+<span id="cb4-51"><a href="#cb4-51" aria-hidden="true" tabindex="-1"></a>region that happens to have a few flagged edges holds rather than cuts</span>
+<span id="cb4-52"><a href="#cb4-52" aria-hidden="true" tabindex="-1"></a>prematurely.</span>
+<span id="cb4-53"><a href="#cb4-53" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-54"><a href="#cb4-54" aria-hidden="true" tabindex="-1"></a>The cut is placed at the **existing graph node** nearest the flagged-edge</span>
+<span id="cb4-55"><a href="#cb4-55" aria-hidden="true" tabindex="-1"></a>centroid along the busiest parameter axis. No new eigensolve is needed at split</span>
+<span id="cb4-56"><a href="#cb4-56" aria-hidden="true" tabindex="-1"></a>time.</span>
+<span id="cb4-57"><a href="#cb4-57" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-58"><a href="#cb4-58" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb4-59"><a href="#cb4-59" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-60"><a href="#cb4-60" aria-hidden="true" tabindex="-1"></a><span class="fu">## 1D demonstration — synthetic two-regime problem</span></span>
+<span id="cb4-61"><a href="#cb4-61" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-62"><a href="#cb4-62" aria-hidden="true" tabindex="-1"></a><span class="fu">### Setup</span></span>
+<span id="cb4-63"><a href="#cb4-63" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-64"><a href="#cb4-64" aria-hidden="true" tabindex="-1"></a>A synthetic 1D eigenproblem designed so the two halves of $<span class="co">[</span><span class="ot">0, 1</span><span class="co">]</span>$ behave</span>
+<span id="cb4-65"><a href="#cb4-65" aria-hidden="true" tabindex="-1"></a>differently by construction:</span>
+<span id="cb4-66"><a href="#cb4-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-67"><a href="#cb4-67" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Left half** ($\mu \le 0.5$): low-rank — eigenvectors are fixed basis</span>
+<span id="cb4-68"><a href="#cb4-68" aria-hidden="true" tabindex="-1"></a>  vectors, so the a-posteriori verdict certifies immediately and the region</span>
+<span id="cb4-69"><a href="#cb4-69" aria-hidden="true" tabindex="-1"></a>  **freezes**.</span>
+<span id="cb4-70"><a href="#cb4-70" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Right half** ($\mu &gt; 0.5$): refinement-heavy — a partial rotation makes</span>
+<span id="cb4-71"><a href="#cb4-71" aria-hidden="true" tabindex="-1"></a>  the verdict flag; one band tilts into a $\mu$-dependent complementary</span>
+<span id="cb4-72"><a href="#cb4-72" aria-hidden="true" tabindex="-1"></a>  direction, so the local basis rank climbs as the region refines.</span>
+<span id="cb4-73"><a href="#cb4-73" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-74"><a href="#cb4-74" aria-hidden="true" tabindex="-1"></a><span class="fu">### Level-by-level decomposition</span></span>
+<span id="cb4-75"><a href="#cb4-75" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-76"><a href="#cb4-76" aria-hidden="true" tabindex="-1"></a>| Level | nodes (+new) | flagged edges | regions | interface budget |</span>
+<span id="cb4-77"><a href="#cb4-77" aria-hidden="true" tabindex="-1"></a>|------:|:------------:|:-------------:|:--------|:----------------:|</span>
+<span id="cb4-78"><a href="#cb4-78" aria-hidden="true" tabindex="-1"></a>| L0 | 3 (+3) | 1 | <span class="in">`R0 [0, 1]`</span> active | 0.00 |</span>
+<span id="cb4-79"><a href="#cb4-79" aria-hidden="true" tabindex="-1"></a>| L1 | 4 (+1) | 2 | <span class="in">`R0 [0, 1]`</span> active | 0.00 |</span>
+<span id="cb4-80"><a href="#cb4-80" aria-hidden="true" tabindex="-1"></a>| L2 | 6 (+2) | 0 | <span class="in">`R1 [0, 0.75]`</span> frozen + <span class="in">`R2 [0.75, 1]`</span> frozen | 0.33 |</span>
+<span id="cb4-81"><a href="#cb4-81" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-82"><a href="#cb4-82" aria-hidden="true" tabindex="-1"></a>The interface budget jumps from 0 to $1/3$ once the split creates the shared</span>
+<span id="cb4-83"><a href="#cb4-83" aria-hidden="true" tabindex="-1"></a>boundary node at $\mu = 0.75$. In 1D a boundary is a single point, so this</span>
+<span id="cb4-84"><a href="#cb4-84" aria-hidden="true" tabindex="-1"></a>stays small by construction.</span>
+<span id="cb4-85"><a href="#cb4-85" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-86"><a href="#cb4-86" aria-hidden="true" tabindex="-1"></a><span class="fu">### Region-tree evolution</span></span>
+<span id="cb4-87"><a href="#cb4-87" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-88"><a href="#cb4-88" aria-hidden="true" tabindex="-1"></a><span class="al">![Region-tree evolution — 1D. Each horizontal strip is one refinement level, segmented at region boundaries and coloured by status (blue = active, grey = frozen). The root region holds, then splits at $\mu = 0.75$; both children certify and freeze the next level.](../figures/domain-decomposition/region-tree-evolution.png)</span></span>
+<span id="cb4-89"><a href="#cb4-89" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-90"><a href="#cb4-90" aria-hidden="true" tabindex="-1"></a><span class="fu">### Per-region memory and POD-rank</span></span>
+<span id="cb4-91"><a href="#cb4-91" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-92"><a href="#cb4-92" aria-hidden="true" tabindex="-1"></a><span class="al">![Per-region memory and POD-rank — 1D. Per-region basis rank (top) and snapshot bytes (bottom), grouped by level. The dashed line is the single-store rank — the rank a global basis over every snapshot would need. The core payoff: max per-region rank sits *below* that line.](../figures/domain-decomposition/region-memory-rank.png)</span></span>
+<span id="cb4-93"><a href="#cb4-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-94"><a href="#cb4-94" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-95"><a href="#cb4-95" aria-hidden="true" tabindex="-1"></a><span class="in">peak_subdomain_count   2</span></span>
+<span id="cb4-96"><a href="#cb4-96" aria-hidden="true" tabindex="-1"></a><span class="in">max_region_pod_rank    6      ← max over both regions</span></span>
+<span id="cb4-97"><a href="#cb4-97" aria-hidden="true" tabindex="-1"></a><span class="in">single_store_rank      7      ← what a global basis would need</span></span>
+<span id="cb4-98"><a href="#cb4-98" aria-hidden="true" tabindex="-1"></a><span class="in">rank_reduction         1</span></span>
+<span id="cb4-99"><a href="#cb4-99" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-100"><a href="#cb4-100" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-101"><a href="#cb4-101" aria-hidden="true" tabindex="-1"></a>Per region, level by level:</span>
+<span id="cb4-102"><a href="#cb4-102" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-103"><a href="#cb4-103" aria-hidden="true" tabindex="-1"></a>| Level | region | status | POD-rank | snapshots |</span>
+<span id="cb4-104"><a href="#cb4-104" aria-hidden="true" tabindex="-1"></a>|------:|:-------|:-------|:--------:|:---------:|</span>
+<span id="cb4-105"><a href="#cb4-105" aria-hidden="true" tabindex="-1"></a>| L0 | R0 <span class="in">`[0, 1]`</span> | active | 5 | 3 |</span>
+<span id="cb4-106"><a href="#cb4-106" aria-hidden="true" tabindex="-1"></a>| L1 | R0 <span class="in">`[0, 1]`</span> | active | 6 | 4 |</span>
+<span id="cb4-107"><a href="#cb4-107" aria-hidden="true" tabindex="-1"></a>| L2 | R1 <span class="in">`[0, 0.75]`</span> | frozen | 5 | 3 |</span>
+<span id="cb4-108"><a href="#cb4-108" aria-hidden="true" tabindex="-1"></a>| L2 | R2 <span class="in">`[0.75, 1]`</span> | frozen | 6 | 3 |</span>
+<span id="cb4-109"><a href="#cb4-109" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-110"><a href="#cb4-110" aria-hidden="true" tabindex="-1"></a>R2 carries the rank-6 regime; R1 stays at 5. The max-over-regions is 6, one</span>
+<span id="cb4-111"><a href="#cb4-111" aria-hidden="true" tabindex="-1"></a>below the single-store rank 7. Small numbers, but they can be checked by hand —</span>
+<span id="cb4-112"><a href="#cb4-112" aria-hidden="true" tabindex="-1"></a>each region's basis reflects only its local behaviour.</span>
+<span id="cb4-113"><a href="#cb4-113" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-114"><a href="#cb4-114" aria-hidden="true" tabindex="-1"></a><span class="fu">### Split/freeze/hold decision timeline</span></span>
+<span id="cb4-115"><a href="#cb4-115" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-116"><a href="#cb4-116" aria-hidden="true" tabindex="-1"></a><span class="al">![Split/freeze/hold decision timeline — 1D. Every region's end-of-level decision, annotated with the driving term: $\rho$ (refinement density) and $\Delta r$ (rank growth) for SPLIT/HOLD; $F$ (flagged-edge count) for FREEZE.](../figures/domain-decomposition/region-decision-timeline.png)</span></span>
+<span id="cb4-117"><a href="#cb4-117" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-118"><a href="#cb4-118" aria-hidden="true" tabindex="-1"></a>| Level | region | action | $\rho$ | flagged/edges | $\Delta r$ | cut |</span>
+<span id="cb4-119"><a href="#cb4-119" aria-hidden="true" tabindex="-1"></a>|------:|:-------|:-------|:------:|:-------------:|:----------:|:----|</span>
+<span id="cb4-120"><a href="#cb4-120" aria-hidden="true" tabindex="-1"></a>| L0 | R0 | **HOLD** | 0.50 | 1/2 | +5 | — |</span>
+<span id="cb4-121"><a href="#cb4-121" aria-hidden="true" tabindex="-1"></a>| L1 | R0 | **SPLIT** | 0.67 | 2/3 | +1 | axis 0 @ $\mu = 0.75$ |</span>
+<span id="cb4-122"><a href="#cb4-122" aria-hidden="true" tabindex="-1"></a>| L2 | R1 | **FREEZE** | 0.00 | 0/2 | — | — |</span>
+<span id="cb4-123"><a href="#cb4-123" aria-hidden="true" tabindex="-1"></a>| L2 | R2 | **FREEZE** | 0.00 | 0/2 | — | — |</span>
+<span id="cb4-124"><a href="#cb4-124" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-125"><a href="#cb4-125" aria-hidden="true" tabindex="-1"></a>L0 holds: density 0.5 is below the split threshold, so the region keeps</span>
+<span id="cb4-126"><a href="#cb4-126" aria-hidden="true" tabindex="-1"></a>refining in place. L1 splits: density climbs to 0.67 and rank is still growing</span>
+<span id="cb4-127"><a href="#cb4-127" aria-hidden="true" tabindex="-1"></a>($\Delta r = 1$), so it cuts at the existing interior node nearest the</span>
+<span id="cb4-128"><a href="#cb4-128" aria-hidden="true" tabindex="-1"></a>flagged-edge centroid. L2 both children have $F = 0$ — fully certified — and</span>
+<span id="cb4-129"><a href="#cb4-129" aria-hidden="true" tabindex="-1"></a>freeze permanently.</span>
+<span id="cb4-130"><a href="#cb4-130" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-131"><a href="#cb4-131" aria-hidden="true" tabindex="-1"></a><span class="fu">### Interface cost</span></span>
+<span id="cb4-132"><a href="#cb4-132" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-133"><a href="#cb4-133" aria-hidden="true" tabindex="-1"></a><span class="al">![Interface budget — 1D. Fraction of nodes on a region boundary per level. Tiny in 1D (a boundary is a single point); the scalability question for higher dimensions is how fast this grows.](../figures/domain-decomposition/interface-budget.png)</span></span>
+<span id="cb4-134"><a href="#cb4-134" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-135"><a href="#cb4-135" aria-hidden="true" tabindex="-1"></a><span class="fu">### Parallel speedup — 1D</span></span>
+<span id="cb4-136"><a href="#cb4-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-137"><a href="#cb4-137" aria-hidden="true" tabindex="-1"></a>With two independent regions, the midpoint eigensolves within each region can</span>
+<span id="cb4-138"><a href="#cb4-138" aria-hidden="true" tabindex="-1"></a>run on separate worker processes. The per-level speedup model is</span>
+<span id="cb4-139"><a href="#cb4-139" aria-hidden="true" tabindex="-1"></a>$S_\ell = \Sigma_r w_{r,\ell} / \max_r w_{r,\ell}$ (total work over critical</span>
+<span id="cb4-140"><a href="#cb4-140" aria-hidden="true" tabindex="-1"></a>path). Over the whole run:</span>
+<span id="cb4-141"><a href="#cb4-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-142"><a href="#cb4-142" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-143"><a href="#cb4-143" aria-hidden="true" tabindex="-1"></a><span class="in">projected speedup   1.20×   (eigensolve-count model)</span></span>
+<span id="cb4-144"><a href="#cb4-144" aria-hidden="true" tabindex="-1"></a><span class="in">measured speedup    1.58×   (wall-clock, actual parallel run)</span></span>
+<span id="cb4-145"><a href="#cb4-145" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-146"><a href="#cb4-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-147"><a href="#cb4-147" aria-hidden="true" tabindex="-1"></a>Measured speedup exceeds projected here because the 1D problem's eigensolves</span>
+<span id="cb4-148"><a href="#cb4-148" aria-hidden="true" tabindex="-1"></a>are so small that forking overhead matters less — the two workers genuinely</span>
+<span id="cb4-149"><a href="#cb4-149" aria-hidden="true" tabindex="-1"></a>overlap their work.</span>
+<span id="cb4-150"><a href="#cb4-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-151"><a href="#cb4-151" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb4-152"><a href="#cb4-152" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-153"><a href="#cb4-153" aria-hidden="true" tabindex="-1"></a><span class="fu">## 2D demonstration — §3.3.3 diffusion</span></span>
+<span id="cb4-154"><a href="#cb4-154" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-155"><a href="#cb4-155" aria-hidden="true" tabindex="-1"></a><span class="fu">### Setup</span></span>
+<span id="cb4-156"><a href="#cb4-156" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-157"><a href="#cb4-157" aria-hidden="true" tabindex="-1"></a>The §3.3.3 two-parameter diffusion problem:</span>
+<span id="cb4-158"><a href="#cb4-158" aria-hidden="true" tabindex="-1"></a>$-\nabla \cdot (c(\mu) \nabla u) = \lambda u$ on $<span class="co">[</span><span class="ot">0,1</span><span class="co">]</span>^2$</span>
+<span id="cb4-159"><a href="#cb4-159" aria-hidden="true" tabindex="-1"></a>with tensor coefficient $c(\mu) = \bigl<span class="co">[</span><span class="ot">\begin{smallmatrix}\mu_0^{-2} &amp; 1 \\ 1 &amp; \mu_1^{-2}\end{smallmatrix}\bigr</span><span class="co">]</span>$,</span>
+<span id="cb4-160"><a href="#cb4-160" aria-hidden="true" tabindex="-1"></a>parameter box $\Omega = <span class="co">[</span><span class="ot">0.8, 1.05</span><span class="co">]</span>^2$, $n_{\rm eigs} = 8$.</span>
+<span id="cb4-161"><a href="#cb4-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-162"><a href="#cb4-162" aria-hidden="true" tabindex="-1"></a>The 2-D benchmark carries a true crossing of bands 3–4 near</span>
+<span id="cb4-163"><a href="#cb4-163" aria-hidden="true" tabindex="-1"></a>$\mu \approx (0.973, 0.973)$ on the symmetry diagonal, and a small-gap pair</span>
+<span id="cb4-164"><a href="#cb4-164" aria-hidden="true" tabindex="-1"></a>at bands 4–7 in the right half of the box. Refinement concentrates near the</span>
+<span id="cb4-165"><a href="#cb4-165" aria-hidden="true" tabindex="-1"></a>crossing, creating a naturally two-regime structure suitable for decomposition.</span>
+<span id="cb4-166"><a href="#cb4-166" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-167"><a href="#cb4-167" aria-hidden="true" tabindex="-1"></a><span class="fu">### Final partition</span></span>
+<span id="cb4-168"><a href="#cb4-168" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-169"><a href="#cb4-169" aria-hidden="true" tabindex="-1"></a><span class="al">![Final region partition — 2D diffusion. Three axis-aligned subdomains after two splits along the $\mu_0$ axis. R1 (left) freezes early; R3 and R4 (middle and far right) refine toward the crossing and then freeze.](../figures/domain-decomposition/region-partition-2d.png)</span></span>
+<span id="cb4-170"><a href="#cb4-170" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-171"><a href="#cb4-171" aria-hidden="true" tabindex="-1"></a>The algorithm makes two cuts, both along $\mu_0$: flagged edges are</span>
+<span id="cb4-172"><a href="#cb4-172" aria-hidden="true" tabindex="-1"></a>concentrated where $\mu_0$ is large (near the crossing), so the busiest axis is</span>
+<span id="cb4-173"><a href="#cb4-173" aria-hidden="true" tabindex="-1"></a>$\mu_0$ at both decision points.</span>
+<span id="cb4-174"><a href="#cb4-174" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-175"><a href="#cb4-175" aria-hidden="true" tabindex="-1"></a><span class="fu">### Level-by-level decisions (mesh_n=15, n_dof ≈ 900)</span></span>
+<span id="cb4-176"><a href="#cb4-176" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-177"><a href="#cb4-177" aria-hidden="true" tabindex="-1"></a>| Level | region | status | action | $\rho$ | flagged/edges | $\Delta r$ | cut |</span>
+<span id="cb4-178"><a href="#cb4-178" aria-hidden="true" tabindex="-1"></a>|------:|:-------|:-------|:-------|:------:|:-------------:|:----------:|:----|</span>
+<span id="cb4-179"><a href="#cb4-179" aria-hidden="true" tabindex="-1"></a>| L0 | R0 <span class="in">`[0.80, 0.80]–[1.05, 1.05]`</span> | active | **SPLIT** | 0.25 | 3/12 | +31 | axis 0 @ $\mu_0 = 0.925$ |</span>
+<span id="cb4-180"><a href="#cb4-180" aria-hidden="true" tabindex="-1"></a>| L1 | R1 <span class="in">`[0.80, 0.80]–[0.925, 1.05]`</span> | → frozen | **FREEZE** | 0.00 | 0/2 | — | — |</span>
+<span id="cb4-181"><a href="#cb4-181" aria-hidden="true" tabindex="-1"></a>| L1 | R2 <span class="in">`[0.925, 0.80]–[1.05, 1.05]`</span> | active | **SPLIT** | 0.10 | 1/10 | +29 | axis 0 @ $\mu_0 = 0.9875$ |</span>
+<span id="cb4-182"><a href="#cb4-182" aria-hidden="true" tabindex="-1"></a>| L2 | R3 <span class="in">`[0.925, 0.80]–[0.9875, 1.05]`</span> | → frozen | **FREEZE** | 0.00 | 0/2 | — | — |</span>
+<span id="cb4-183"><a href="#cb4-183" aria-hidden="true" tabindex="-1"></a>| L2 | R4 <span class="in">`[0.9875, 0.80]–[1.05, 1.05]`</span> | → frozen | **FREEZE** | 0.00 | 0/6 | — | — |</span>
+<span id="cb4-184"><a href="#cb4-184" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-185"><a href="#cb4-185" aria-hidden="true" tabindex="-1"></a>Reading the sequence: the box splits off its left third at L0 (relatively clean</span>
+<span id="cb4-186"><a href="#cb4-186" aria-hidden="true" tabindex="-1"></a>region, certifies immediately at L1), then the right portion splits again at L1</span>
+<span id="cb4-187"><a href="#cb4-187" aria-hidden="true" tabindex="-1"></a>(zooming toward the crossing), and both sub-regions certify at L2.</span>
+<span id="cb4-188"><a href="#cb4-188" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-189"><a href="#cb4-189" aria-hidden="true" tabindex="-1"></a><span class="fu">### Rank reduction (mesh_n=15)</span></span>
+<span id="cb4-190"><a href="#cb4-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-191"><a href="#cb4-191" aria-hidden="true" tabindex="-1"></a>Per-region POD-rank at termination:</span>
+<span id="cb4-192"><a href="#cb4-192" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-193"><a href="#cb4-193" aria-hidden="true" tabindex="-1"></a>| region | bounds ($\mu_0$) | status | POD-rank | snapshots |</span>
+<span id="cb4-194"><a href="#cb4-194" aria-hidden="true" tabindex="-1"></a>|:-------|:-----------------|:-------|:--------:|:---------:|</span>
+<span id="cb4-195"><a href="#cb4-195" aria-hidden="true" tabindex="-1"></a>| R1 | <span class="co">[</span><span class="ot">0.80, 0.925</span><span class="co">]</span> | frozen | 18 | 3 |</span>
+<span id="cb4-196"><a href="#cb4-196" aria-hidden="true" tabindex="-1"></a>| R3 | <span class="co">[</span><span class="ot">0.925, 0.9875</span><span class="co">]</span> | frozen | 19 | 3 |</span>
+<span id="cb4-197"><a href="#cb4-197" aria-hidden="true" tabindex="-1"></a>| R4 | <span class="co">[</span><span class="ot">0.9875, 1.05</span><span class="co">]</span> | frozen | 23 | 7 |</span>
+<span id="cb4-198"><a href="#cb4-198" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-199"><a href="#cb4-199" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-200"><a href="#cb4-200" aria-hidden="true" tabindex="-1"></a><span class="in">peak_subdomain_count   3</span></span>
+<span id="cb4-201"><a href="#cb4-201" aria-hidden="true" tabindex="-1"></a><span class="in">max_region_pod_rank   23      ← worst region (near the crossing)</span></span>
+<span id="cb4-202"><a href="#cb4-202" aria-hidden="true" tabindex="-1"></a><span class="in">single_store_rank     31      ← what a single global basis needs</span></span>
+<span id="cb4-203"><a href="#cb4-203" aria-hidden="true" tabindex="-1"></a><span class="in">rank_reduction         8      ← 26% savings</span></span>
+<span id="cb4-204"><a href="#cb4-204" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb4-205"><a href="#cb4-205" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-206"><a href="#cb4-206" aria-hidden="true" tabindex="-1"></a>R4 (containing the crossing at $\mu_0 \approx 0.973$) carries the highest rank.</span>
+<span id="cb4-207"><a href="#cb4-207" aria-hidden="true" tabindex="-1"></a>R1 and R3 (cleaner regions) are leaner. A global basis would pool all 13</span>
+<span id="cb4-208"><a href="#cb4-208" aria-hidden="true" tabindex="-1"></a>snapshots into one store and reach rank 31.</span>
+<span id="cb4-209"><a href="#cb4-209" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-210"><a href="#cb4-210" aria-hidden="true" tabindex="-1"></a><span class="fu">### Parallel speedup — the two-regime story</span></span>
+<span id="cb4-211"><a href="#cb4-211" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-212"><a href="#cb4-212" aria-hidden="true" tabindex="-1"></a>The decomposition structure (which regions form, where the cuts land, rank</span>
+<span id="cb4-213"><a href="#cb4-213" aria-hidden="true" tabindex="-1"></a>savings) is the same regardless of mesh resolution. The **parallel payoff**</span>
+<span id="cb4-214"><a href="#cb4-214" aria-hidden="true" tabindex="-1"></a>depends on problem size:</span>
+<span id="cb4-215"><a href="#cb4-215" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-216"><a href="#cb4-216" aria-hidden="true" tabindex="-1"></a>| | mesh_n=15 (n_dof ≈ 900) | mesh_n=64 (n_dof ≈ 16k) |</span>
+<span id="cb4-217"><a href="#cb4-217" aria-hidden="true" tabindex="-1"></a>|:--|:-:|:-:|</span>
+<span id="cb4-218"><a href="#cb4-218" aria-hidden="true" tabindex="-1"></a>| peak subdomains | 3 | 4 |</span>
+<span id="cb4-219"><a href="#cb4-219" aria-hidden="true" tabindex="-1"></a>| max region POD-rank | 23 | 22 |</span>
+<span id="cb4-220"><a href="#cb4-220" aria-hidden="true" tabindex="-1"></a>| single-store rank | 31 | 31 |</span>
+<span id="cb4-221"><a href="#cb4-221" aria-hidden="true" tabindex="-1"></a>| rank reduction | 8 (26%) | 9 (29%) |</span>
+<span id="cb4-222"><a href="#cb4-222" aria-hidden="true" tabindex="-1"></a>| projected speedup | 1.09× | 1.14× |</span>
+<span id="cb4-223"><a href="#cb4-223" aria-hidden="true" tabindex="-1"></a>| **measured speedup** | **≈1.00×** (overhead-bound) | **1.21×** (win regime) |</span>
+<span id="cb4-224"><a href="#cb4-224" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-225"><a href="#cb4-225" aria-hidden="true" tabindex="-1"></a>At mesh_n=15, each eigensolve takes only a few milliseconds — faster than the</span>
+<span id="cb4-226"><a href="#cb4-226" aria-hidden="true" tabindex="-1"></a>process-fork overhead needed to distribute work across cores. The measured</span>
+<span id="cb4-227"><a href="#cb4-227" aria-hidden="true" tabindex="-1"></a>speedup is ≈1.00×. At mesh_n=64 (n_dof ≈ 16k), eigensolves are the dominant</span>
+<span id="cb4-228"><a href="#cb4-228" aria-hidden="true" tabindex="-1"></a>cost; process-fork overhead amortises and the measured speedup reaches **1.21×**.</span>
+<span id="cb4-229"><a href="#cb4-229" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-230"><a href="#cb4-230" aria-hidden="true" tabindex="-1"></a>The crossover is measured at approximately n_dof ≈ 5k (DIR-055C, see</span>
+<span id="cb4-231"><a href="#cb4-231" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">parallel-execution.md</span><span class="co">](../parallel-execution.md)</span> for the three-regime story).</span>
+<span id="cb4-232"><a href="#cb4-232" aria-hidden="true" tabindex="-1"></a>The §3.3.3 problem at mesh_n=64 sits clearly in the win regime: the projected</span>
+<span id="cb4-233"><a href="#cb4-233" aria-hidden="true" tabindex="-1"></a>model (1.14×) and the measured wall-clock (1.21×) are in close agreement.</span>
+<span id="cb4-234"><a href="#cb4-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-235"><a href="#cb4-235" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb4-236"><a href="#cb4-236" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-237"><a href="#cb4-237" aria-hidden="true" tabindex="-1"></a><span class="fu">## Scope</span></span>
+<span id="cb4-238"><a href="#cb4-238" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-239"><a href="#cb4-239" aria-hidden="true" tabindex="-1"></a>**Works at any d_param:**</span>
+<span id="cb4-240"><a href="#cb4-240" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-241"><a href="#cb4-241" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>The refinement loop decomposition (split/freeze/hold decisions, per-region</span>
+<span id="cb4-242"><a href="#cb4-242" aria-hidden="true" tabindex="-1"></a>  snapshot stores, region stats in the run report)</span>
+<span id="cb4-243"><a href="#cb4-243" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>Parallel eigensolve execution within and across regions</span>
+<span id="cb4-244"><a href="#cb4-244" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>All run-report telemetry (<span class="in">`region_summary`</span>, per-level <span class="in">`regions`</span> +</span>
+<span id="cb4-245"><a href="#cb4-245" aria-hidden="true" tabindex="-1"></a>  <span class="in">`region_decisions`</span>, <span class="in">`interface_budget_series`</span>)</span>
+<span id="cb4-246"><a href="#cb4-246" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-247"><a href="#cb4-247" aria-hidden="true" tabindex="-1"></a>**Certified ROM accuracy over the decomposed store (Tier 3).** The last</span>
+<span id="cb4-248"><a href="#cb4-248" aria-hidden="true" tabindex="-1"></a>deferred capability closed: <span class="in">`evaluate_rom`</span> now works over a decomposed store</span>
+<span id="cb4-249"><a href="#cb4-249" aria-hidden="true" tabindex="-1"></a>at every $d_{\mathrm{param}}$. The nearest-$k$ basis pool may straddle region</span>
+<span id="cb4-250"><a href="#cb4-250" aria-hidden="true" tabindex="-1"></a>boundaries — that is sound because the joint $M(\mu)$-orthonormalisation</span>
+<span id="cb4-251"><a href="#cb4-251" aria-hidden="true" tabindex="-1"></a>consumes only the *span* of the stacked snapshot blocks, which is invariant</span>
+<span id="cb4-252"><a href="#cb4-252" aria-hidden="true" tabindex="-1"></a>to each region POD's internal gauge; reads go through the resolver (boundary</span>
+<span id="cb4-253"><a href="#cb4-253" aria-hidden="true" tabindex="-1"></a>copies at full fidelity), and pool-exhaustion deficiency falls back to a</span>
+<span id="cb4-254"><a href="#cb4-254" aria-hidden="true" tabindex="-1"></a>rank-revealing Gram eigendecomposition. Certified on live decomposed runs</span>
+<span id="cb4-255"><a href="#cb4-255" aria-hidden="true" tabindex="-1"></a>with forced eviction (per-region cold PODs exercised, not just raw active</span>
+<span id="cb4-256"><a href="#cb4-256" aria-hidden="true" tabindex="-1"></a>blocks):</span>
+<span id="cb4-257"><a href="#cb4-257" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-258"><a href="#cb4-258" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**2D §3.3.3 bed** (4 region leaves): eigenvalue rel-err ≤ 1.3e-8,</span>
+<span id="cb4-259"><a href="#cb4-259" aria-hidden="true" tabindex="-1"></a>  subspace angle ≤ 4.2e-5 rad — far inside the pinned §3.3.3 ceilings</span>
+<span id="cb4-260"><a href="#cb4-260" aria-hidden="true" tabindex="-1"></a>  (2.5e-4 / 0.015 rad); delta vs the single-store ROM ≤ 7.5e-5.</span>
+<span id="cb4-261"><a href="#cb4-261" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**6D bed** (the ROM-ceiling bed, 10 leaves, forced eviction): rel-err</span>
+<span id="cb4-262"><a href="#cb4-262" aria-hidden="true" tabindex="-1"></a>  ≤ 1.8e-5 vs the 2e-3 ceiling, angle ≤ 2.0e-3 rad vs 3e-2; delta vs</span>
+<span id="cb4-263"><a href="#cb4-263" aria-hidden="true" tabindex="-1"></a>  single-store ≤ 1.1e-4.</span>
+<span id="cb4-264"><a href="#cb4-264" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb4-265"><a href="#cb4-265" aria-hidden="true" tabindex="-1"></a>So the decomposition's rank savings do not cost measurable surrogate</span>
+<span id="cb4-266"><a href="#cb4-266" aria-hidden="true" tabindex="-1"></a>accuracy: the decomposed ROM answers queries as accurately as the</span>
+<span id="cb4-267"><a href="#cb4-267" aria-hidden="true" tabindex="-1"></a>single-store one, with the delta between them measured, not assumed.</span>
+<span id="cb4-268"><a href="#cb4-268" aria-hidden="true" tabindex="-1"></a>**Measured at 6D (DIR-113, faithful operator).** The high-dimensional rendered</span>
+<span id="cb4-269"><a href="#cb4-269" aria-hidden="true" tabindex="-1"></a>view is no longer deferred: the <span class="co">[</span><span class="ot">§4.4 6D campaign page</span><span class="co">](elasticity-4-4-campaign.qmd)</span></span>
+<span id="cb4-270"><a href="#cb4-270" aria-hidden="true" tabindex="-1"></a>shows the decomposition on the real dissertation problem at n_dof = 1846 on the</span>
+<span id="cb4-271"><a href="#cb4-271" aria-hidden="true" tabindex="-1"></a>DIR-112-corrected operator — 5 splits, 4 freezes, peak 6 subdomains,</span>
+<span id="cb4-272"><a href="#cb4-272" aria-hidden="true" tabindex="-1"></a>single-store POD rank **35** vs max per-region **22** (−37 %), and a refinement</span>
+<span id="cb4-273"><a href="#cb4-273" aria-hidden="true" tabindex="-1"></a>trajectory identical to serial *with verdicts byte-identical*. Two honest</span>
+<span id="cb4-274"><a href="#cb4-274" aria-hidden="true" tabindex="-1"></a>faithful caveats replace the pre-fix headline: the interface budget climbs to</span>
+<span id="cb4-275"><a href="#cb4-275" aria-hidden="true" tabindex="-1"></a>**0.31** by L4 (not ≤0.1 — the sparse 32-node grid puts more nodes on</span>
+<span id="cb4-276"><a href="#cb4-276" aria-hidden="true" tabindex="-1"></a>boundaries), and the parallel pool goes **overhead-bound** (raw wall 0.70×) —</span>
+<span id="cb4-277"><a href="#cb4-277" aria-hidden="true" tabindex="-1"></a>at the true ~10-mode window solves cost milliseconds, so the 14 workers lose to</span>
+<span id="cb4-278"><a href="#cb4-278" aria-hidden="true" tabindex="-1"></a>serial. The pre-fix DIR-110 numbers (rank 1311→862, budget ≤0.096, 2.43×) were</span>
+<span id="cb4-279"><a href="#cb4-279" aria-hidden="true" tabindex="-1"></a>driven by the fake ~380-mode window's heavy solves.</span></code><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></pre></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

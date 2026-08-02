@@ -1,0 +1,187 @@
+{
+  "schema_version": 4,
+  "problem": {
+    "name": "diffusion_2d_coefficient_3_3_3",
+    "d_param": 2,
+    "d_space": 2,
+    "n_dof": 3969
+  },
+  "config": {
+    "mode": "Window",
+    "max_levels": 8,
+    "t_pi": 0.57,
+    "t_lambda": 0.015,
+    "pruning_mode": "anchored_absolute",
+    "refinement_topology": "axis_aligned",
+    "lambda_lo": 0.0,
+    "lambda_hi": 200.0
+  },
+  "outcome": {
+    "terminated_at_level": 5,
+    "ran_out": false,
+    "sentinel": "LEVEL_5_COMPLETED",
+    "wall_time_s": 5.7359026479534805,
+    "peak_rss_mb": 194.9296875
+  },
+  "levels": [
+    {
+      "L": 0,
+      "n_nodes_total": 9,
+      "n_nodes_added_this_level": 9,
+      "n_flagged_edges": 0,
+      "k_per_snapshot": {
+        "min": 9,
+        "max": 24,
+        "mean": 15.444444444444445,
+        "p50": 15.0,
+        "p95": 22.799999999999997,
+        "n": 9
+      },
+      "active_bytes": 4414784,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 163.6875,
+      "wall_time_at_level_s": 0.603754767216742,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 1,
+      "n_nodes_total": 21,
+      "n_nodes_added_this_level": 12,
+      "n_flagged_edges": 4,
+      "k_per_snapshot": {
+        "min": 9,
+        "max": 24,
+        "mean": 15.095238095238095,
+        "p50": 14.0,
+        "p95": 22.0,
+        "n": 21
+      },
+      "active_bytes": 10068256,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 168.61328125,
+      "wall_time_at_level_s": 1.6087261820212007,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 2,
+      "n_nodes_total": 32,
+      "n_nodes_added_this_level": 11,
+      "n_flagged_edges": 11,
+      "k_per_snapshot": {
+        "min": 9,
+        "max": 24,
+        "mean": 15.59375,
+        "p50": 15.0,
+        "p95": 22.0,
+        "n": 32
+      },
+      "active_bytes": 15848752,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 174.7890625,
+      "wall_time_at_level_s": 2.577882631216198,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 3,
+      "n_nodes_total": 52,
+      "n_nodes_added_this_level": 20,
+      "n_flagged_edges": 14,
+      "k_per_snapshot": {
+        "min": 9,
+        "max": 24,
+        "mean": 15.884615384615385,
+        "p50": 15.0,
+        "p95": 22.0,
+        "n": 52
+      },
+      "active_bytes": 26234592,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 186.63671875,
+      "wall_time_at_level_s": 4.395988516975194,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 4,
+      "n_nodes_total": 62,
+      "n_nodes_added_this_level": 10,
+      "n_flagged_edges": 15,
+      "k_per_snapshot": {
+        "min": 9,
+        "max": 24,
+        "mean": 16.419354838709676,
+        "p50": 16.0,
+        "p95": 22.0,
+        "n": 62
+      },
+      "active_bytes": 32332672,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 194.9296875,
+      "wall_time_at_level_s": 5.356669249944389,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 5,
+      "n_nodes_total": 66,
+      "n_nodes_added_this_level": 4,
+      "n_flagged_edges": 15,
+      "k_per_snapshot": {
+        "min": 9,
+        "max": 24,
+        "mean": 16.53030303030303,
+        "p50": 16.0,
+        "p95": 22.0,
+        "n": 66
+      },
+      "active_bytes": 34651216,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 194.9296875,
+      "wall_time_at_level_s": 5.735644435044378,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    }
+  ],
+  "verdicts": {
+    "CERTIFIED": 703,
+    "REFINE": 206,
+    "ENTERED": 50,
+    "CLUSTER": 28,
+    "EXITED": 8
+  },
+  "growth_fit": {
+    "n_nodes": {
+      "exponent": 1.1587787715496822,
+      "r_squared": 0.9898343631117369,
+      "n_points": 6
+    },
+    "active_bytes": {
+      "exponent": 1.2025128317980254,
+      "r_squared": 0.9915480848287421,
+      "n_points": 6
+    }
+  },
+  "oom_autopsy": null,
+  "region_summary": null
+}

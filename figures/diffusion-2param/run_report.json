@@ -1,0 +1,253 @@
+{
+  "schema_version": 4,
+  "problem": {
+    "name": "diffusion_2d_coefficient_3_3_3",
+    "d_param": 2,
+    "d_space": 2,
+    "n_dof": 3969
+  },
+  "config": {
+    "mode": "FirstK",
+    "max_levels": 8,
+    "t_pi": 0.57,
+    "t_lambda": 0.015,
+    "pruning_mode": "anchored_absolute",
+    "refinement_topology": "axis_aligned",
+    "n_eigs": 20
+  },
+  "outcome": {
+    "terminated_at_level": 8,
+    "ran_out": false,
+    "sentinel": "LEVEL_8_COMPLETED",
+    "wall_time_s": 10.266705695074052,
+    "peak_rss_mb": 226.58203125
+  },
+  "levels": [
+    {
+      "L": 0,
+      "n_nodes_total": 9,
+      "n_nodes_added_this_level": 9,
+      "n_flagged_edges": 0,
+      "k_per_snapshot": {
+        "min": 20,
+        "max": 20,
+        "mean": 20.0,
+        "p50": 20.0,
+        "p95": 20.0,
+        "n": 9
+      },
+      "active_bytes": 5716944,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 162.8828125,
+      "wall_time_at_level_s": 0.6577234691940248,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 1,
+      "n_nodes_total": 21,
+      "n_nodes_added_this_level": 12,
+      "n_flagged_edges": 9,
+      "k_per_snapshot": {
+        "min": 20,
+        "max": 20,
+        "mean": 20.0,
+        "p50": 20.0,
+        "p95": 20.0,
+        "n": 21
+      },
+      "active_bytes": 13339536,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 165.4140625,
+      "wall_time_at_level_s": 1.5810017469339073,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 2,
+      "n_nodes_total": 43,
+      "n_nodes_added_this_level": 22,
+      "n_flagged_edges": 17,
+      "k_per_snapshot": {
+        "min": 20,
+        "max": 20,
+        "mean": 20.0,
+        "p50": 20.0,
+        "p95": 20.0,
+        "n": 43
+      },
+      "active_bytes": 27314288,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 179.34375,
+      "wall_time_at_level_s": 3.237878513056785,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 3,
+      "n_nodes_total": 64,
+      "n_nodes_added_this_level": 21,
+      "n_flagged_edges": 23,
+      "k_per_snapshot": {
+        "min": 20,
+        "max": 20,
+        "mean": 20.0,
+        "p50": 20.0,
+        "p95": 20.0,
+        "n": 64
+      },
+      "active_bytes": 40653824,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 191.6171875,
+      "wall_time_at_level_s": 5.099441379774362,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 4,
+      "n_nodes_total": 86,
+      "n_nodes_added_this_level": 22,
+      "n_flagged_edges": 28,
+      "k_per_snapshot": {
+        "min": 20,
+        "max": 20,
+        "mean": 20.0,
+        "p50": 20.0,
+        "p95": 20.0,
+        "n": 86
+      },
+      "active_bytes": 54628576,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 204.94140625,
+      "wall_time_at_level_s": 7.091119716875255,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 5,
+      "n_nodes_total": 103,
+      "n_nodes_added_this_level": 17,
+      "n_flagged_edges": 29,
+      "k_per_snapshot": {
+        "min": 20,
+        "max": 20,
+        "mean": 20.0,
+        "p50": 20.0,
+        "p95": 20.0,
+        "n": 103
+      },
+      "active_bytes": 65427248,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 215.6875,
+      "wall_time_at_level_s": 8.628463970962912,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 6,
+      "n_nodes_total": 107,
+      "n_nodes_added_this_level": 4,
+      "n_flagged_edges": 32,
+      "k_per_snapshot": {
+        "min": 20,
+        "max": 20,
+        "mean": 20.0,
+        "p50": 20.0,
+        "p95": 20.0,
+        "n": 107
+      },
+      "active_bytes": 67968112,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 217.6640625,
+      "wall_time_at_level_s": 8.997558942064643,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 7,
+      "n_nodes_total": 117,
+      "n_nodes_added_this_level": 10,
+      "n_flagged_edges": 33,
+      "k_per_snapshot": {
+        "min": 20,
+        "max": 20,
+        "mean": 20.0,
+        "p50": 20.0,
+        "p95": 20.0,
+        "n": 117
+      },
+      "active_bytes": 74320272,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 223.9765625,
+      "wall_time_at_level_s": 9.900561019778252,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    },
+    {
+      "L": 8,
+      "n_nodes_total": 121,
+      "n_nodes_added_this_level": 4,
+      "n_flagged_edges": 33,
+      "k_per_snapshot": {
+        "min": 20,
+        "max": 20,
+        "mean": 20.0,
+        "p50": 20.0,
+        "p95": 20.0,
+        "n": 121
+      },
+      "active_bytes": 76861136,
+      "cold_rank_total": 0,
+      "evictions_total": 0,
+      "peak_rss_at_level_mb": 226.58203125,
+      "wall_time_at_level_s": 10.266468261834234,
+      "interface_budget": 0.0,
+      "regions": [],
+      "region_decisions": [],
+      "mass_budget": null
+    }
+  ],
+  "verdicts": {
+    "CERTIFIED": 3305,
+    "REFINE": 723,
+    "CLUSTER": 52
+  },
+  "growth_fit": {
+    "n_nodes": {
+      "exponent": 1.2375032957487426,
+      "r_squared": 0.9757440023701576,
+      "n_points": 9
+    },
+    "active_bytes": {
+      "exponent": 1.2375032957487404,
+      "r_squared": 0.9757440023701576,
+      "n_points": 9
+    }
+  },
+  "oom_autopsy": null,
+  "region_summary": null
+}

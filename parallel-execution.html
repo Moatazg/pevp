@@ -1,0 +1,1505 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.57">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>parallel-execution – The adaptive-greedy parametric eigenvalue solver</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="site_libs/quarto-nav/headroom.min.js"></script>
+<script src="site_libs/clipboard/clipboard.min.js"></script>
+<script src="site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="site_libs/quarto-search/fuse.min.js"></script>
+<script src="site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="./">
+<script src="site_libs/quarto-html/quarto.js"></script>
+<script src="site_libs/quarto-html/popper.min.js"></script>
+<script src="site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="site_libs/quarto-html/anchor.min.js"></script>
+<link href="site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script>
+// Collapse sidebar sections on load; only expand the one with the active page.
+(function () {
+  function collapseSidebarSections() {
+    var sections = document.querySelectorAll(".sidebar-section");
+    var activeSection = null;
+    sections.forEach(function (sec) {
+      if (sec.querySelector(".sidebar-item-text.active, .sidebar-link.active")) {
+        activeSection = sec;
+      }
+    });
+    sections.forEach(function (sec) {
+      if (sec === activeSection) return;
+      sec.classList.remove("show");
+    });
+    // Sync aria-expanded on the toggle buttons.
+    document.querySelectorAll("[data-bs-target^='#quarto-sidebar-section']").forEach(function (btn) {
+      var target = document.querySelector(btn.getAttribute("data-bs-target"));
+      if (target) {
+        btn.setAttribute("aria-expanded", target.classList.contains("show") ? "true" : "false");
+      }
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", collapseSidebarSections);
+  } else {
+    collapseSidebarSections();
+  }
+})();
+</script>
+
+<script>
+// Per-level refinement-animation widget.
+// Auto-initialises every element matching `.level-scroll[data-frames]`.
+// data-frames: comma-separated image URLs (one per refinement level).
+// data-caption: template; "{i}" → frame index + data-level-start (default 0).
+(function () {
+  function init(el) {
+    var frames = (el.dataset.frames || "")
+      .split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+    if (frames.length === 0) return;
+    var captionTpl = el.dataset.caption || "L={i}";
+    var levelStart = parseInt(el.dataset.levelStart || "0", 10);
+    var img = el.querySelector("img.frame");
+    var slider = el.querySelector("input[type=range]");
+    var caption = el.querySelector(".caption .level");
+    if (!img || !slider || !caption) return;
+    slider.min = "0";
+    slider.max = String(frames.length - 1);
+    slider.step = "1";
+    if (!slider.value) slider.value = "0";
+    function render(idx) {
+      var i = Math.max(0, Math.min(frames.length - 1, idx));
+      img.src = frames[i];
+      caption.textContent = captionTpl.replace("{i}", String(i + levelStart));
+    }
+    slider.addEventListener("input", function () {
+      render(parseInt(slider.value, 10));
+    });
+    el.tabIndex = 0;
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") {
+        slider.value = String(Math.max(0, parseInt(slider.value, 10) - 1));
+        render(parseInt(slider.value, 10));
+        e.preventDefault();
+      } else if (e.key === "ArrowRight") {
+        slider.value = String(Math.min(frames.length - 1, parseInt(slider.value, 10) + 1));
+        render(parseInt(slider.value, 10));
+        e.preventDefault();
+      }
+    });
+    render(parseInt(slider.value, 10));
+  }
+  function initAll() {
+    var els = document.querySelectorAll(".level-scroll[data-frames]");
+    for (var i = 0; i < els.length; i++) init(els[i]);
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAll);
+  } else {
+    initAll();
+  }
+})();
+</script>
+
+
+<link rel="stylesheet" href="assets/level-scroll.css">
+</head>
+
+<body class="nav-sidebar docked nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="./index.html">
+    <span class="navbar-title">The adaptive-greedy parametric eigenvalue solver</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/Moatazg/pevp-rebuild"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./studies.html">Studies</a></li><li class="breadcrumb-item"><a href="./parallel-execution.html">Real Parallel Execution of Domain-Decomposition Refinement</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Validation</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/spectrum-samples.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Is the finite-element substrate trustworthy?</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/affine-cache-cross-check.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Affine-cache cross-check</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Demonstrations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./demonstrations.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/diffusion-3-3-2.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D diffusion eigenproblem with a one-parameter coefficient</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/diffusion-3-3-3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D diffusion eigenproblem with a two-parameter coefficient</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/elasticity-2d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D plane-stress elasticity eigenproblem</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/elasticity-4-4-campaign.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">§4.4 6D campaign — quality demonstration at scale</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/elasticity-4-4-evidence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">§4.4 6D campaign — the correctness evidence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/rom-vs-dense.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ROM vs dense FE sweep</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/two-chamber-resonator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Two-Chamber Resonator — the Minimal Crossing Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Mechanisms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./mechanisms.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/crossing-and-projection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Persistent Π Failures at Eigenvalue Crossings</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/domain-decomposition.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Dynamic domain decomposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sensitivity</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./sensitivity.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/mesh-independence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Mesh independence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/tolerance-perturbation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Tolerance perturbation — how load-bearing is the threshold choice?</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./examples/knob-sweep.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Knob sweep — how sensitive is the grid to the thresholds?</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Studies</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./studies.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./why-this-algorithm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Why the adaptive-greedy algorithm for parametric eigenvalue problems</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./method-comparison-1d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Methods for the 1D Parametric Eigenvalue Problem: A Comparison Framework</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./strategy-comparison.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Refinement strategy A/B: edge-bisection vs hierarchical (measured)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./coverage-policy-validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cost-Accuracy Validation of the Composite Refinement Policy π⋆</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./runtime-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Runtime analysis: the one-path verdict vs the retired span/tracking modes (measured)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./parallel-execution.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">Real Parallel Execution of Domain-Decomposition Refinement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./region-parallel-speedup.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Projected Parallel Speedup of Dynamic Domain Decomposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Methodology</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">How it works — the algorithm end to end</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Correctness Techniques in <code>pevp-rebuild</code></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reference correctness-demonstration techniques</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Acknowledged issues in the adaptive-greedy pEVP algorithm</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Algorithm Parity Audit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Rebuild vs dissertation — the three-way divergence record</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open Methodological Questions for Validating the Rebuilt pEVP Algorithm</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open Research and Architecture Problems for the pEVP Rebuild</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open-Problems Status Register</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">The partial sparse grid, formally — admissible subtree ↔︎ lower set, directional surplus, hanging nodes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Classifying Eigenvalue-Crossing Type Beyond the Block Matrix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sheet decomposition: matching-driven hypersurfaces and the plaquette holonomy certificate</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Dynamic Domain Decomposition of the Parameter Space</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="./methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Hierarchical refinement strategy and the one-sided parent↔︎child verdict</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#real-parallel-execution-of-domain-decomposition-refinement" id="toc-real-parallel-execution-of-domain-decomposition-refinement" class="nav-link active" data-scroll-target="#real-parallel-execution-of-domain-decomposition-refinement">Real Parallel Execution of Domain-Decomposition Refinement</a>
+  <ul class="collapse">
+  <li><a href="#execution-model-solve-grain-task-pool" id="toc-execution-model-solve-grain-task-pool" class="nav-link" data-scroll-target="#execution-model-solve-grain-task-pool">Execution model — solve-grain task pool</a>
+  <ul class="collapse">
+  <li><a href="#why-it-is-oom-safe-the-laptop-is-the-only-host" id="toc-why-it-is-oom-safe-the-laptop-is-the-only-host" class="nav-link" data-scroll-target="#why-it-is-oom-safe-the-laptop-is-the-only-host">Why it is OOM-safe (the laptop is the only host)</a></li>
+  </ul></li>
+  <li><a href="#the-equivalence-guarantee-hard-gate" id="toc-the-equivalence-guarantee-hard-gate" class="nav-link" data-scroll-target="#the-equivalence-guarantee-hard-gate">The equivalence guarantee (HARD gate)</a></li>
+  <li><a href="#measured-vs-projected" id="toc-measured-vs-projected" class="nav-link" data-scroll-target="#measured-vs-projected">Measured vs projected</a>
+  <ul class="collapse">
+  <li><a href="#per-region-measured-model-comparable-to-the-projection" id="toc-per-region-measured-model-comparable-to-the-projection" class="nav-link" data-scroll-target="#per-region-measured-model-comparable-to-the-projection">1. Per-region measured model (comparable to the projection)</a></li>
+  <li><a href="#raw-end-to-end-wall-clock-did-multiprocessing-pay-off" id="toc-raw-end-to-end-wall-clock-did-multiprocessing-pay-off" class="nav-link" data-scroll-target="#raw-end-to-end-wall-clock-did-multiprocessing-pay-off">2. Raw end-to-end wall-clock (did multiprocessing pay off?)</a></li>
+  <li><a href="#overhead-accounting" id="toc-overhead-accounting" class="nav-link" data-scroll-target="#overhead-accounting">Overhead accounting</a></li>
+  <li><a href="#three-regimes-and-the-blas-oversubscription-fix" id="toc-three-regimes-and-the-blas-oversubscription-fix" class="nav-link" data-scroll-target="#three-regimes-and-the-blas-oversubscription-fix">Three regimes, and the BLAS-oversubscription fix</a></li>
+  </ul></li>
+  <li><a href="#provenance" id="toc-provenance" class="nav-link" data-scroll-target="#provenance">Provenance</a></li>
+  </ul></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content"><div class="quarto-title-block"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="./studies.html">Studies</a></li><li class="breadcrumb-item"><a href="./parallel-execution.html">Real Parallel Execution of Domain-Decomposition Refinement</a></li></ol></nav><div class="quarto-title-tools-only"><h1></h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+
+
+
+
+<section id="real-parallel-execution-of-domain-decomposition-refinement" class="level1">
+<h1>Real Parallel Execution of Domain-Decomposition Refinement</h1>
+<blockquote class="blockquote">
+<p><strong>What is on this page.</strong> The <a href="./region-parallel-speedup.html">projected-speedup analysis (companion page)</a> quantified the parallelism the dynamic domain decomposition <em>would</em> buy — a <strong>projected</strong> per-region speedup built from eigensolve counts under a per-level-barrier model — but ran no parallel code. This page is the realisation: the per-level midpoint eigensolves now actually run on a bounded pool of worker processes, the run is <strong>proved numerically identical</strong> to the serial one, and the measured wall-clock is confronted with that projection. The parallel executor is opt-in — off by default, the refinement loop is the single-process serial path.</p>
+</blockquote>
+<p>This is the answer to <em>“the decomposition’s whole purpose is parallel refinement — does it actually deliver?”</em> The headline is honest and now complete: <strong>the equivalence is exact, and parallelism genuinely wins once the problem is big enough — measured 1.3× at <code>n_dof ≈ 16k</code>, with the crossover near <code>n_dof ≈ 5k</code> (right where the §4.4 6D problem lives).</strong> At small sizes process overhead dominates (raw speedup &lt; 1), and a naive worker pool <em>collapses</em> at large sizes from BLAS thread oversubscription — fixed by pinning each worker to one BLAS thread (see “Three regimes” below). Parallelism is a <em>large-problem</em> lever, correct at every size and fast at the sizes that matter.</p>
+<hr>
+<section id="execution-model-solve-grain-task-pool" class="level2">
+<h2 class="anchored" data-anchor-id="execution-model-solve-grain-task-pool">Execution model — solve-grain task pool</h2>
+<p>The eigensolve (ARPACK shift-invert / LOBPCG over the full FE matrices) is the dominant cost and is exactly what the projection counts. Crucially, <strong>a solve needs only <code>K(µ), M(µ)</code> from the parametric problem — not the snapshot store.</strong> The store is consumed only by the cheap a-posteriori matching step, which stays in the main process. So the heavy unit is memory-light to ship to a worker, and every store + the graph stay single-process.</p>
+<p>The per-level loop becomes:</p>
+<ol type="1">
+<li><strong>Test edges</strong> (main process; reconstructs stored snapshots, runs matching).</li>
+<li><strong>Region decision → freeze / split</strong> (main process; the synchronisation barrier — the level-end rule that freezes certified regions of the parameter box and splits busy ones, unchanged from the domain-decomposition prototype).</li>
+<li><strong>Bisect flagged edges</strong>: the batch of midpoint µ’s is computed in the main process (cheap, pure <code>0.5·(a+b)</code>), dispatched to a <strong>bounded</strong> <code>ProcessPoolExecutor</code>, and the returned eigenpairs are integrated back — store insertion + graph mutation — <strong>in flagged-edge order</strong>, not worker completion order.</li>
+</ol>
+<p>The seed grid (level 0) always runs serially; only the per-level refinement batches — the work the companion projection scores — are parallelised.</p>
+<pre><code>                    main process                         workers
+  level ℓ:
+    test edges ───────────────┐
+    region decide / freeze/split (barrier)
+    midpoints = [0.5(a+b) …] ──┼──▶ eigensolve(µ₁)  ┐
+                               │    eigensolve(µ₂)  ├ bounded pool
+                               │    …               ┘ (worker cap)
+    integrate in edge order ◀──┘   (results returned in input order)
+      store insertion + graph mutation</code></pre>
+<p>The worker-pool configuration — the worker cap and the process start method — is the only knob. With the pool disabled (the default) the run is the single-process serial path, byte-for-byte unchanged.</p>
+<section id="why-it-is-oom-safe-the-laptop-is-the-only-host" class="level3">
+<h3 class="anchored" data-anchor-id="why-it-is-oom-safe-the-laptop-is-the-only-host">Why it is OOM-safe (the laptop is the only host)</h3>
+<ul>
+<li>Workers carry <strong>one FE problem each and no store</strong>. Under the <code>fork</code> start method (Linux default) that problem is a copy-on-write share of the parent’s already-assembled affine cache — near-zero extra resident memory per worker.</li>
+<li>The worker cap is a hard bound on concurrency; nothing in the batch path pickles a snapshot store or a cold tier.</li>
+<li>The 6D validation point is explicitly <strong>bounded</strong> (capped <code>n_dof</code>, levels, and workers) and the caps are logged into the artifact.</li>
+</ul>
+<hr>
+</section>
+</section>
+<section id="the-equivalence-guarantee-hard-gate" class="level2">
+<h2 class="anchored" data-anchor-id="the-equivalence-guarantee-hard-gate">The equivalence guarantee (HARD gate)</h2>
+<p>A parallel run is <strong>numerically identical</strong> to the serial run on the same config. Two ingredients make this exact rather than approximate:</p>
+<ol type="1">
+<li><strong>Deterministic solve.</strong> The shift-invert eigensolver passes a fixed ARPACK start vector <code>v0 = 𝟙/√n</code> instead of ARPACK’s default <em>random</em> one. The eigenvector gauge in (near-)degenerate blocks is then a function of <code>µ</code> alone, so the same <code>µ</code> gives bit-identical eigenpairs no matter which process solves it. (This is the same fix the 6D reduced-order-model accuracy measurement needed; here it was promoted from a test fixture to a shipped solver option.)</li>
+<li><strong>Deterministic integration.</strong> Results are gathered for the whole batch and then applied in flagged-edge order — the <em>same</em> order the serial loop mutates the graph — so the graph that is built (node indices, edges, verdicts) is byte-identical. Worker completion order cannot leak in.</li>
+</ol>
+<p>Because the parallel path feeds its precomputed eigenpairs back through the <em>same</em> bisection mutation the serial path uses, no graph-mutation logic is duplicated — only <em>where the solve runs</em> differs.</p>
+<p>A regression test pins this on a 1D and a 2D config: identical grid nodes, identical per-edge verdicts, identical stored eigenvalues, and eigenvector subspace angle <code>&lt; 1e-8</code>. It also pins that the result is independent of the worker count (1 vs 4) and repeatable across runs.</p>
+<hr>
+</section>
+<section id="measured-vs-projected" class="level2">
+<h2 class="anchored" data-anchor-id="measured-vs-projected">Measured vs projected</h2>
+<p>Two distinct measurements, because they answer different questions.</p>
+<section id="per-region-measured-model-comparable-to-the-projection" class="level3">
+<h3 class="anchored" data-anchor-id="per-region-measured-model-comparable-to-the-projection">1. Per-region measured model (comparable to the projection)</h3>
+<p>Bucket the <strong>real per-solve wall-times</strong> by region and apply the <em>same</em> per-level-barrier model the projection used (critical path = busiest region’s time). Speedup, efficiency, and load balance are dimensionless <strong>ratios</strong>, so the measured number (seconds) is directly comparable to the projected number (eigensolve counts). The gap between them is exactly the effect of solve-cost <strong>heterogeneity</strong> — the projection assumed every eigensolve costs the same; this shows whether that holds.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 8%">
+<col style="width: 21%">
+<col style="width: 10%">
+<col style="width: 26%">
+<col style="width: 32%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Case</th>
+<th style="text-align: right;">regions (peak)</th>
+<th style="text-align: right;">term L</th>
+<th style="text-align: right;">projected speedup</th>
+<th style="text-align: right;">measured-model speedup</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1D (two-regime prototype)</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;"><strong>1.20×</strong></td>
+<td style="text-align: right;">1.48×</td>
+</tr>
+<tr class="even">
+<td>2D (§3.3.3 diffusion)</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;"><strong>1.09×</strong></td>
+<td style="text-align: right;">1.00×</td>
+</tr>
+<tr class="odd">
+<td>6D (L-shape, bounded)</td>
+<td style="text-align: right;">3</td>
+<td style="text-align: right;">2</td>
+<td style="text-align: right;"><strong>1.16×</strong></td>
+<td style="text-align: right;">1.77×</td>
+</tr>
+</tbody>
+</table>
+<p>The projected column <strong>reproduces the companion page’s projection</strong> (1D 1.20×, 2D 1.09×) — confirming the two layers are scored on the same footing. The measured-model column diverges where solve cost is non-uniform: in 1D and 6D the busy region’s solves happen to be cheaper than average, so the measured model is <em>more</em> optimistic than the count-based projection; in 2D the run terminates before the regions carry refinement work, so the per-region model has a single active region per refinement level and reads 1.0 (the projection’s &gt;1 comes from the seed-lattice distribution, which the measured model — refinement-levels only — does not see). All three are honest readings, not failures.</p>
+</section>
+<section id="raw-end-to-end-wall-clock-did-multiprocessing-pay-off" class="level3">
+<h3 class="anchored" data-anchor-id="raw-end-to-end-wall-clock-did-multiprocessing-pay-off">2. Raw end-to-end wall-clock (did multiprocessing pay off?)</h3>
+<p>The wall time of the whole refinement run, serial vs parallel:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th>Case</th>
+<th style="text-align: right;">serial (s)</th>
+<th style="text-align: right;">parallel (s)</th>
+<th style="text-align: right;">raw speedup</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1D</td>
+<td style="text-align: right;">0.011</td>
+<td style="text-align: right;">0.031</td>
+<td style="text-align: right;"><strong>0.36×</strong></td>
+</tr>
+<tr class="even">
+<td>2D</td>
+<td style="text-align: right;">0.076</td>
+<td style="text-align: right;">0.103</td>
+<td style="text-align: right;"><strong>0.74×</strong></td>
+</tr>
+<tr class="odd">
+<td>6D (bounded)</td>
+<td style="text-align: right;">0.228</td>
+<td style="text-align: right;">0.356</td>
+<td style="text-align: right;"><strong>0.64×</strong></td>
+</tr>
+</tbody>
+</table>
+<p><strong>Raw speedup is below 1.0 in every bounded case</strong> — multiprocessing makes these <em>small</em> runs slower, because process spawn, argument/result pickling, and the per-level barrier together cost more than the eigensolves save when each solve is sub-millisecond-to-millisecond. These bounded sizes are the <strong>overhead-bound regime</strong> only; the next section measures the crossover where parallel wins. Eigenvalue max relative difference vs serial is <strong>0.0</strong> (bit-identical) in all three cases — the overhead buys nothing here because the compute is trivially small.</p>
+</section>
+<section id="overhead-accounting" class="level3">
+<h3 class="anchored" data-anchor-id="overhead-accounting">Overhead accounting</h3>
+<p>The wall-clock gap <code>parallel − serial</code> is dominated by:</p>
+<ul>
+<li><strong>Pool/worker spawn.</strong> Even with <code>fork</code>, creating the pool and its workers is a fixed cost paid once per run (the pool is created lazily on the first non-empty batch and reused across levels, so it is <em>not</em> paid per level).</li>
+<li><strong>Pickling.</strong> Each task ships a <code>µ</code> vector (tiny) and returns an <code>(eigenvalues, eigenvectors)</code> block (<code>n_dof × k</code> floats) — the return pickle grows with <code>n_dof</code> and is the per-solve tax that only pays off once the solve itself is expensive enough.</li>
+<li><strong>Barrier synchronisation.</strong> The region freeze/split decision is a hard per-level barrier; a level cannot start its solves until the previous level’s results are fully integrated.</li>
+</ul>
+<p>The crossover where parallelism wins requires a larger <code>n_dof</code> (so each solve dwarfs its pickle), more flagged edges per level (so the bounded pool stays saturated), or deeper refinement (so the fixed spawn cost amortises). The bounded cases above sit entirely in the overhead-bound regime; the crossover itself is <strong>measured</strong> in the next section.</p>
+</section>
+<section id="three-regimes-and-the-blas-oversubscription-fix" class="level3">
+<h3 class="anchored" data-anchor-id="three-regimes-and-the-blas-oversubscription-fix">Three regimes, and the BLAS-oversubscription fix</h3>
+<p>Sweeping <code>n_dof</code> on the 2D problem (four workers) makes the full picture concrete:</p>
+<table class="caption-top table">
+<thead>
+<tr class="header">
+<th style="text-align: right;">n_dof</th>
+<th style="text-align: right;">per-solve</th>
+<th style="text-align: right;">serial</th>
+<th style="text-align: right;">parallel</th>
+<th style="text-align: right;">raw speedup</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td style="text-align: right;">196</td>
+<td style="text-align: right;">3 ms</td>
+<td style="text-align: right;">48 ms</td>
+<td style="text-align: right;">186 ms</td>
+<td style="text-align: right;">0.26×</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">1 521</td>
+<td style="text-align: right;">11 ms</td>
+<td style="text-align: right;">200 ms</td>
+<td style="text-align: right;">285 ms</td>
+<td style="text-align: right;">0.70×</td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">4 761</td>
+<td style="text-align: right;">37 ms</td>
+<td style="text-align: right;">553 ms</td>
+<td style="text-align: right;">585 ms</td>
+<td style="text-align: right;">0.95×</td>
+</tr>
+<tr class="even">
+<td style="text-align: right;">9 801</td>
+<td style="text-align: right;">105 ms</td>
+<td style="text-align: right;">1689 ms</td>
+<td style="text-align: right;">1340 ms</td>
+<td style="text-align: right;"><strong>1.26×</strong></td>
+</tr>
+<tr class="odd">
+<td style="text-align: right;">16 641</td>
+<td style="text-align: right;">373 ms</td>
+<td style="text-align: right;">5656 ms</td>
+<td style="text-align: right;">4309 ms</td>
+<td style="text-align: right;"><strong>1.31×</strong></td>
+</tr>
+</tbody>
+</table>
+<p>Three regimes: <strong>(1) overhead-bound</strong> (<code>n_dof &lt; ~2k</code>) — pool spawn + result pickling exceed the sub-10 ms solves, raw speedup <code>&lt; 1</code>; <strong>(2) crossover</strong> (<code>n_dof ~ 5k</code>) — solves grow heavy enough to amortise the overhead; <strong>(3) win</strong> (<code>n_dof ≥ ~10k</code>) — parallel is genuinely faster. The real §4.4 6D problem (<code>n_dof ≈ 6000</code>) sits right at the crossover.</p>
+<p>That regime-3 win only holds <strong>because each worker is pinned to one BLAS thread</strong> (the worker-pool configuration’s default). Without it, each worker’s ARPACK shift-invert spawns an all-core BLAS, so several worker processes × all-core BLAS oversubscribe the CPU and <em>collapse</em> the speedup — measured <strong>0.51× at <code>n_dof = 16641</code></strong>, versus <strong>1.31×</strong> with pinning. The pin is applied per-worker by runtime thread-pool limiting — the only mechanism that works under <code>fork</code>, where <code>OMP_NUM_THREADS</code> is read by BLAS at import, before the worker forks; the serial path’s multithreaded BLAS is untouched. Equivalence is unchanged by the thread count (pinned ≡ unpinned ≡ serial, bit-for-bit) — pinning trades only <em>how</em> each solve uses cores, never <em>what</em> it computes. The worker count defaults to two fewer than the CPU count, so the pinned single-thread workers fill the cores without starving the OS or the main process.</p>
+<hr>
+</section>
+</section>
+<section id="provenance" class="level2">
+<h2 class="anchored" data-anchor-id="provenance">Provenance</h2>
+<p>The measurements were produced by an instrumented driver in the project repository. Per-case artifacts record the equivalence verdict, the raw wall-clock, the measured-vs-projected comparison, and the 6D caps. The wall-clock numbers are a point-in-time measurement on one machine, not a pinned invariant — the pinned guarantee is the <em>equivalence</em>, enforced by a regression test.</p>
+<blockquote class="blockquote">
+<p><strong>Out of scope.</strong> The region-aware reduced-order-model evaluation path remains unimplemented — the parallel executor never calls it (it parallelises <em>refinement</em> solves only). That is a separate follow-up to the domain-decomposition prototype.</p>
+</blockquote>
+<hr>
+<p><strong>Related.</strong> The projection this realises: <a href="./region-parallel-speedup.html">region-parallel-speedup.md</a>. The decomposition design and the freeze/split criterion are set out in the domain-decomposition design note, not yet published. The interface-scalability frontier the high-dimensional follow-up inherits — whether the region boundary, a <code>(d−1)</code>-dimensional surface of never-compressed full-fidelity snapshots, stays cheap as the parameter dimension grows — belongs to a companion catalogue of open scalability problems, not yet published.</p>
+
+
+<!-- -->
+
+</section>
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+  const viewSource = window.document.getElementById('quarto-view-source') ||
+                     window.document.getElementById('quarto-code-tools-source');
+  if (viewSource) {
+    const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+    viewSource.addEventListener("click", function(e) {
+      if (sourceUrl) {
+        // rstudio viewer pane
+        if (/\bcapabilities=\b/.test(window.location)) {
+          window.open(sourceUrl);
+        } else {
+          window.location.href = sourceUrl;
+        }
+      } else {
+        const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+        modal.show();
+      }
+      return false;
+    });
+  }
+  function toggleCodeHandler(show) {
+    return function(e) {
+      const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+      for (let i=0; i<detailsSrc.length; i++) {
+        const details = detailsSrc[i].parentElement;
+        if (show) {
+          details.open = true;
+        } else {
+          details.removeAttribute("open");
+        }
+      }
+      const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+      const fromCls = show ? "hidden" : "unhidden";
+      const toCls = show ? "unhidden" : "hidden";
+      for (let i=0; i<cellCodeDivs.length; i++) {
+        const codeDiv = cellCodeDivs[i];
+        if (codeDiv.classList.contains(fromCls)) {
+          codeDiv.classList.remove(fromCls);
+          codeDiv.classList.add(toCls);
+        } 
+      }
+      return false;
+    }
+  }
+  const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+  if (hideAllCode) {
+    hideAllCode.addEventListener("click", toggleCodeHandler(false));
+  }
+  const showAllCode = window.document.getElementById("quarto-show-all-code");
+  if (showAllCode) {
+    showAllCode.addEventListener("click", toggleCodeHandler(true));
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="sourceCode" id="cb2" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a><span class="fu"># Real Parallel Execution of Domain-Decomposition Refinement</span></span>
+<span id="cb2-2"><a href="#cb2-2" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-3"><a href="#cb2-3" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **What is on this page.** The [projected-speedup analysis (companion</span></span>
+<span id="cb2-4"><a href="#cb2-4" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; page)](region-parallel-speedup.md) quantified the parallelism the dynamic</span></span>
+<span id="cb2-5"><a href="#cb2-5" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; domain decomposition *would* buy — a **projected** per-region speedup built</span></span>
+<span id="cb2-6"><a href="#cb2-6" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; from eigensolve counts under a per-level-barrier model — but ran no parallel</span></span>
+<span id="cb2-7"><a href="#cb2-7" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; code. This page is the realisation: the per-level midpoint eigensolves now</span></span>
+<span id="cb2-8"><a href="#cb2-8" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; actually run on a bounded pool of worker processes, the run is **proved</span></span>
+<span id="cb2-9"><a href="#cb2-9" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; numerically identical** to the serial one, and the measured wall-clock is</span></span>
+<span id="cb2-10"><a href="#cb2-10" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; confronted with that projection. The parallel executor is opt-in — off by</span></span>
+<span id="cb2-11"><a href="#cb2-11" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; default, the refinement loop is the single-process serial path.</span></span>
+<span id="cb2-12"><a href="#cb2-12" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-13"><a href="#cb2-13" aria-hidden="true" tabindex="-1"></a>This is the answer to *"the decomposition's whole purpose is parallel</span>
+<span id="cb2-14"><a href="#cb2-14" aria-hidden="true" tabindex="-1"></a>refinement — does it actually deliver?"* The headline is honest and now</span>
+<span id="cb2-15"><a href="#cb2-15" aria-hidden="true" tabindex="-1"></a>complete: **the equivalence is exact, and parallelism genuinely wins once the</span>
+<span id="cb2-16"><a href="#cb2-16" aria-hidden="true" tabindex="-1"></a>problem is big enough — measured 1.3× at <span class="in">`n_dof ≈ 16k`</span>, with the crossover near</span>
+<span id="cb2-17"><a href="#cb2-17" aria-hidden="true" tabindex="-1"></a><span class="in">`n_dof ≈ 5k`</span> (right where the §4.4 6D problem lives).** At small</span>
+<span id="cb2-18"><a href="#cb2-18" aria-hidden="true" tabindex="-1"></a>sizes process overhead dominates (raw speedup &lt; 1), and a naive worker pool</span>
+<span id="cb2-19"><a href="#cb2-19" aria-hidden="true" tabindex="-1"></a>*collapses* at large sizes from BLAS thread oversubscription — fixed by pinning</span>
+<span id="cb2-20"><a href="#cb2-20" aria-hidden="true" tabindex="-1"></a>each worker to one BLAS thread (see "Three regimes" below).</span>
+<span id="cb2-21"><a href="#cb2-21" aria-hidden="true" tabindex="-1"></a>Parallelism is a *large-problem* lever, correct at every size and fast at the</span>
+<span id="cb2-22"><a href="#cb2-22" aria-hidden="true" tabindex="-1"></a>sizes that matter.</span>
+<span id="cb2-23"><a href="#cb2-23" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-24"><a href="#cb2-24" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-25"><a href="#cb2-25" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-26"><a href="#cb2-26" aria-hidden="true" tabindex="-1"></a><span class="fu">## Execution model — solve-grain task pool</span></span>
+<span id="cb2-27"><a href="#cb2-27" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-28"><a href="#cb2-28" aria-hidden="true" tabindex="-1"></a>The eigensolve (ARPACK shift-invert / LOBPCG over the full FE matrices) is the</span>
+<span id="cb2-29"><a href="#cb2-29" aria-hidden="true" tabindex="-1"></a>dominant cost and is exactly what the projection counts. Crucially, **a solve</span>
+<span id="cb2-30"><a href="#cb2-30" aria-hidden="true" tabindex="-1"></a>needs only <span class="in">`K(µ), M(µ)`</span> from the parametric problem — not the snapshot store.**</span>
+<span id="cb2-31"><a href="#cb2-31" aria-hidden="true" tabindex="-1"></a>The store is consumed only by the cheap a-posteriori matching step, which stays</span>
+<span id="cb2-32"><a href="#cb2-32" aria-hidden="true" tabindex="-1"></a>in the main process. So the heavy unit is memory-light to ship to a worker, and</span>
+<span id="cb2-33"><a href="#cb2-33" aria-hidden="true" tabindex="-1"></a>every store + the graph stay single-process.</span>
+<span id="cb2-34"><a href="#cb2-34" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-35"><a href="#cb2-35" aria-hidden="true" tabindex="-1"></a>The per-level loop becomes:</span>
+<span id="cb2-36"><a href="#cb2-36" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-37"><a href="#cb2-37" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Test edges** (main process; reconstructs stored snapshots, runs matching).</span>
+<span id="cb2-38"><a href="#cb2-38" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Region decision → freeze / split** (main process; the synchronisation</span>
+<span id="cb2-39"><a href="#cb2-39" aria-hidden="true" tabindex="-1"></a>   barrier — the level-end rule that freezes certified regions of the parameter</span>
+<span id="cb2-40"><a href="#cb2-40" aria-hidden="true" tabindex="-1"></a>   box and splits busy ones, unchanged from the domain-decomposition</span>
+<span id="cb2-41"><a href="#cb2-41" aria-hidden="true" tabindex="-1"></a>   prototype).</span>
+<span id="cb2-42"><a href="#cb2-42" aria-hidden="true" tabindex="-1"></a><span class="ss">3. </span>**Bisect flagged edges**: the batch of midpoint µ's is computed in the main</span>
+<span id="cb2-43"><a href="#cb2-43" aria-hidden="true" tabindex="-1"></a>   process (cheap, pure <span class="in">`0.5·(a+b)`</span>), dispatched to a **bounded**</span>
+<span id="cb2-44"><a href="#cb2-44" aria-hidden="true" tabindex="-1"></a>   <span class="in">`ProcessPoolExecutor`</span>, and the returned eigenpairs are integrated back —</span>
+<span id="cb2-45"><a href="#cb2-45" aria-hidden="true" tabindex="-1"></a>   store insertion + graph mutation — **in flagged-edge order**, not worker</span>
+<span id="cb2-46"><a href="#cb2-46" aria-hidden="true" tabindex="-1"></a>   completion order.</span>
+<span id="cb2-47"><a href="#cb2-47" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-48"><a href="#cb2-48" aria-hidden="true" tabindex="-1"></a>The seed grid (level 0) always runs serially; only the per-level refinement</span>
+<span id="cb2-49"><a href="#cb2-49" aria-hidden="true" tabindex="-1"></a>batches — the work the companion projection scores — are parallelised.</span>
+<span id="cb2-50"><a href="#cb2-50" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-51"><a href="#cb2-51" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb2-52"><a href="#cb2-52" aria-hidden="true" tabindex="-1"></a><span class="in">                    main process                         workers</span></span>
+<span id="cb2-53"><a href="#cb2-53" aria-hidden="true" tabindex="-1"></a><span class="in">  level ℓ:</span></span>
+<span id="cb2-54"><a href="#cb2-54" aria-hidden="true" tabindex="-1"></a><span class="in">    test edges ───────────────┐</span></span>
+<span id="cb2-55"><a href="#cb2-55" aria-hidden="true" tabindex="-1"></a><span class="in">    region decide / freeze/split (barrier)</span></span>
+<span id="cb2-56"><a href="#cb2-56" aria-hidden="true" tabindex="-1"></a><span class="in">    midpoints = [0.5(a+b) …] ──┼──▶ eigensolve(µ₁)  ┐</span></span>
+<span id="cb2-57"><a href="#cb2-57" aria-hidden="true" tabindex="-1"></a><span class="in">                               │    eigensolve(µ₂)  ├ bounded pool</span></span>
+<span id="cb2-58"><a href="#cb2-58" aria-hidden="true" tabindex="-1"></a><span class="in">                               │    …               ┘ (worker cap)</span></span>
+<span id="cb2-59"><a href="#cb2-59" aria-hidden="true" tabindex="-1"></a><span class="in">    integrate in edge order ◀──┘   (results returned in input order)</span></span>
+<span id="cb2-60"><a href="#cb2-60" aria-hidden="true" tabindex="-1"></a><span class="in">      store insertion + graph mutation</span></span>
+<span id="cb2-61"><a href="#cb2-61" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb2-62"><a href="#cb2-62" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-63"><a href="#cb2-63" aria-hidden="true" tabindex="-1"></a>The worker-pool configuration — the worker cap and the process start method —</span>
+<span id="cb2-64"><a href="#cb2-64" aria-hidden="true" tabindex="-1"></a>is the only knob. With the pool disabled (the default) the run is the</span>
+<span id="cb2-65"><a href="#cb2-65" aria-hidden="true" tabindex="-1"></a>single-process serial path, byte-for-byte unchanged.</span>
+<span id="cb2-66"><a href="#cb2-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-67"><a href="#cb2-67" aria-hidden="true" tabindex="-1"></a><span class="fu">### Why it is OOM-safe (the laptop is the only host)</span></span>
+<span id="cb2-68"><a href="#cb2-68" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-69"><a href="#cb2-69" aria-hidden="true" tabindex="-1"></a><span class="ss">* </span>Workers carry **one FE problem each and no store**. Under the <span class="in">`fork`</span> start</span>
+<span id="cb2-70"><a href="#cb2-70" aria-hidden="true" tabindex="-1"></a>  method (Linux default) that problem is a copy-on-write share of the parent's</span>
+<span id="cb2-71"><a href="#cb2-71" aria-hidden="true" tabindex="-1"></a>  already-assembled affine cache — near-zero extra resident memory per worker.</span>
+<span id="cb2-72"><a href="#cb2-72" aria-hidden="true" tabindex="-1"></a><span class="ss">* </span>The worker cap is a hard bound on concurrency; nothing in the batch path</span>
+<span id="cb2-73"><a href="#cb2-73" aria-hidden="true" tabindex="-1"></a>  pickles a snapshot store or a cold tier.</span>
+<span id="cb2-74"><a href="#cb2-74" aria-hidden="true" tabindex="-1"></a><span class="ss">* </span>The 6D validation point is explicitly **bounded** (capped <span class="in">`n_dof`</span>, levels, and</span>
+<span id="cb2-75"><a href="#cb2-75" aria-hidden="true" tabindex="-1"></a>  workers) and the caps are logged into the artifact.</span>
+<span id="cb2-76"><a href="#cb2-76" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-77"><a href="#cb2-77" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-78"><a href="#cb2-78" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-79"><a href="#cb2-79" aria-hidden="true" tabindex="-1"></a><span class="fu">## The equivalence guarantee (HARD gate)</span></span>
+<span id="cb2-80"><a href="#cb2-80" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-81"><a href="#cb2-81" aria-hidden="true" tabindex="-1"></a>A parallel run is **numerically identical** to the serial run on the same</span>
+<span id="cb2-82"><a href="#cb2-82" aria-hidden="true" tabindex="-1"></a>config. Two ingredients make this exact rather than approximate:</span>
+<span id="cb2-83"><a href="#cb2-83" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-84"><a href="#cb2-84" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Deterministic solve.** The shift-invert eigensolver passes a fixed</span>
+<span id="cb2-85"><a href="#cb2-85" aria-hidden="true" tabindex="-1"></a>   ARPACK start vector <span class="in">`v0 = 𝟙/√n`</span> instead of ARPACK's default *random* one. The</span>
+<span id="cb2-86"><a href="#cb2-86" aria-hidden="true" tabindex="-1"></a>   eigenvector gauge in (near-)degenerate blocks is then a function of <span class="in">`µ`</span></span>
+<span id="cb2-87"><a href="#cb2-87" aria-hidden="true" tabindex="-1"></a>   alone, so the same <span class="in">`µ`</span> gives bit-identical eigenpairs no matter which process</span>
+<span id="cb2-88"><a href="#cb2-88" aria-hidden="true" tabindex="-1"></a>   solves it. (This is the same fix the 6D reduced-order-model accuracy</span>
+<span id="cb2-89"><a href="#cb2-89" aria-hidden="true" tabindex="-1"></a>   measurement needed; here it was promoted from a test fixture to a shipped</span>
+<span id="cb2-90"><a href="#cb2-90" aria-hidden="true" tabindex="-1"></a>   solver option.)</span>
+<span id="cb2-91"><a href="#cb2-91" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Deterministic integration.** Results are gathered for the whole batch and</span>
+<span id="cb2-92"><a href="#cb2-92" aria-hidden="true" tabindex="-1"></a>   then applied in flagged-edge order — the *same* order the serial loop</span>
+<span id="cb2-93"><a href="#cb2-93" aria-hidden="true" tabindex="-1"></a>   mutates the graph — so the graph that is built (node indices, edges,</span>
+<span id="cb2-94"><a href="#cb2-94" aria-hidden="true" tabindex="-1"></a>   verdicts) is byte-identical. Worker completion order cannot leak in.</span>
+<span id="cb2-95"><a href="#cb2-95" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-96"><a href="#cb2-96" aria-hidden="true" tabindex="-1"></a>Because the parallel path feeds its precomputed eigenpairs back through the</span>
+<span id="cb2-97"><a href="#cb2-97" aria-hidden="true" tabindex="-1"></a>*same* bisection mutation the serial path uses, no graph-mutation logic is</span>
+<span id="cb2-98"><a href="#cb2-98" aria-hidden="true" tabindex="-1"></a>duplicated — only *where the solve runs* differs.</span>
+<span id="cb2-99"><a href="#cb2-99" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-100"><a href="#cb2-100" aria-hidden="true" tabindex="-1"></a>A regression test pins this on a 1D and a 2D config: identical grid nodes,</span>
+<span id="cb2-101"><a href="#cb2-101" aria-hidden="true" tabindex="-1"></a>identical per-edge verdicts, identical stored eigenvalues, and eigenvector</span>
+<span id="cb2-102"><a href="#cb2-102" aria-hidden="true" tabindex="-1"></a>subspace angle <span class="in">`&lt; 1e-8`</span>. It also pins that the result is independent of the</span>
+<span id="cb2-103"><a href="#cb2-103" aria-hidden="true" tabindex="-1"></a>worker count (1 vs 4) and repeatable across runs.</span>
+<span id="cb2-104"><a href="#cb2-104" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-105"><a href="#cb2-105" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-106"><a href="#cb2-106" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-107"><a href="#cb2-107" aria-hidden="true" tabindex="-1"></a><span class="fu">## Measured vs projected</span></span>
+<span id="cb2-108"><a href="#cb2-108" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-109"><a href="#cb2-109" aria-hidden="true" tabindex="-1"></a>Two distinct measurements, because they answer different questions.</span>
+<span id="cb2-110"><a href="#cb2-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-111"><a href="#cb2-111" aria-hidden="true" tabindex="-1"></a><span class="fu">### 1. Per-region measured model (comparable to the projection)</span></span>
+<span id="cb2-112"><a href="#cb2-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-113"><a href="#cb2-113" aria-hidden="true" tabindex="-1"></a>Bucket the **real per-solve wall-times** by region and apply the *same*</span>
+<span id="cb2-114"><a href="#cb2-114" aria-hidden="true" tabindex="-1"></a>per-level-barrier model the projection used (critical path = busiest region's</span>
+<span id="cb2-115"><a href="#cb2-115" aria-hidden="true" tabindex="-1"></a>time). Speedup, efficiency, and load balance are dimensionless **ratios**, so</span>
+<span id="cb2-116"><a href="#cb2-116" aria-hidden="true" tabindex="-1"></a>the measured number (seconds) is directly comparable to the projected number</span>
+<span id="cb2-117"><a href="#cb2-117" aria-hidden="true" tabindex="-1"></a>(eigensolve counts). The gap between them is exactly the effect of solve-cost</span>
+<span id="cb2-118"><a href="#cb2-118" aria-hidden="true" tabindex="-1"></a>**heterogeneity** — the projection assumed every eigensolve costs the same;</span>
+<span id="cb2-119"><a href="#cb2-119" aria-hidden="true" tabindex="-1"></a>this shows whether that holds.</span>
+<span id="cb2-120"><a href="#cb2-120" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-121"><a href="#cb2-121" aria-hidden="true" tabindex="-1"></a>| Case | regions (peak) | term L | projected speedup | measured-model speedup |</span>
+<span id="cb2-122"><a href="#cb2-122" aria-hidden="true" tabindex="-1"></a>|------|---------------:|-------:|------------------:|-----------------------:|</span>
+<span id="cb2-123"><a href="#cb2-123" aria-hidden="true" tabindex="-1"></a>| 1D (two-regime prototype) | 2 | 2 | **1.20×** | 1.48× |</span>
+<span id="cb2-124"><a href="#cb2-124" aria-hidden="true" tabindex="-1"></a>| 2D (§3.3.3 diffusion) | 3 | 2 | **1.09×** | 1.00× |</span>
+<span id="cb2-125"><a href="#cb2-125" aria-hidden="true" tabindex="-1"></a>| 6D (L-shape, bounded) | 3 | 2 | **1.16×** | 1.77× |</span>
+<span id="cb2-126"><a href="#cb2-126" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-127"><a href="#cb2-127" aria-hidden="true" tabindex="-1"></a>The projected column **reproduces the companion page's projection** (1D 1.20×,</span>
+<span id="cb2-128"><a href="#cb2-128" aria-hidden="true" tabindex="-1"></a>2D 1.09×) —</span>
+<span id="cb2-129"><a href="#cb2-129" aria-hidden="true" tabindex="-1"></a>confirming the two layers are scored on the same footing. The measured-model</span>
+<span id="cb2-130"><a href="#cb2-130" aria-hidden="true" tabindex="-1"></a>column diverges where solve cost is non-uniform: in 1D and 6D the busy region's</span>
+<span id="cb2-131"><a href="#cb2-131" aria-hidden="true" tabindex="-1"></a>solves happen to be cheaper than average, so the measured model is *more*</span>
+<span id="cb2-132"><a href="#cb2-132" aria-hidden="true" tabindex="-1"></a>optimistic than the count-based projection; in 2D the run terminates before the</span>
+<span id="cb2-133"><a href="#cb2-133" aria-hidden="true" tabindex="-1"></a>regions carry refinement work, so the per-region model has a single active</span>
+<span id="cb2-134"><a href="#cb2-134" aria-hidden="true" tabindex="-1"></a>region per refinement level and reads 1.0 (the projection's &gt;1 comes from the</span>
+<span id="cb2-135"><a href="#cb2-135" aria-hidden="true" tabindex="-1"></a>seed-lattice distribution, which the measured model — refinement-levels only —</span>
+<span id="cb2-136"><a href="#cb2-136" aria-hidden="true" tabindex="-1"></a>does not see). All three are honest readings, not failures.</span>
+<span id="cb2-137"><a href="#cb2-137" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-138"><a href="#cb2-138" aria-hidden="true" tabindex="-1"></a><span class="fu">### 2. Raw end-to-end wall-clock (did multiprocessing pay off?)</span></span>
+<span id="cb2-139"><a href="#cb2-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-140"><a href="#cb2-140" aria-hidden="true" tabindex="-1"></a>The wall time of the whole refinement run, serial vs parallel:</span>
+<span id="cb2-141"><a href="#cb2-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-142"><a href="#cb2-142" aria-hidden="true" tabindex="-1"></a>| Case | serial (s) | parallel (s) | raw speedup |</span>
+<span id="cb2-143"><a href="#cb2-143" aria-hidden="true" tabindex="-1"></a>|------|-----------:|-------------:|------------:|</span>
+<span id="cb2-144"><a href="#cb2-144" aria-hidden="true" tabindex="-1"></a>| 1D  | 0.011 | 0.031 | **0.36×** |</span>
+<span id="cb2-145"><a href="#cb2-145" aria-hidden="true" tabindex="-1"></a>| 2D  | 0.076 | 0.103 | **0.74×** |</span>
+<span id="cb2-146"><a href="#cb2-146" aria-hidden="true" tabindex="-1"></a>| 6D (bounded) | 0.228 | 0.356 | **0.64×** |</span>
+<span id="cb2-147"><a href="#cb2-147" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-148"><a href="#cb2-148" aria-hidden="true" tabindex="-1"></a>**Raw speedup is below 1.0 in every bounded case** — multiprocessing makes these</span>
+<span id="cb2-149"><a href="#cb2-149" aria-hidden="true" tabindex="-1"></a>*small* runs slower, because process spawn, argument/result pickling, and the</span>
+<span id="cb2-150"><a href="#cb2-150" aria-hidden="true" tabindex="-1"></a>per-level barrier together cost more than the eigensolves save when each solve</span>
+<span id="cb2-151"><a href="#cb2-151" aria-hidden="true" tabindex="-1"></a>is sub-millisecond-to-millisecond. These bounded sizes are the **overhead-bound</span>
+<span id="cb2-152"><a href="#cb2-152" aria-hidden="true" tabindex="-1"></a>regime** only; the next section measures the crossover where parallel wins.</span>
+<span id="cb2-153"><a href="#cb2-153" aria-hidden="true" tabindex="-1"></a>Eigenvalue max relative difference vs serial is **0.0** (bit-identical) in all</span>
+<span id="cb2-154"><a href="#cb2-154" aria-hidden="true" tabindex="-1"></a>three cases — the overhead buys nothing here because the compute is trivially</span>
+<span id="cb2-155"><a href="#cb2-155" aria-hidden="true" tabindex="-1"></a>small.</span>
+<span id="cb2-156"><a href="#cb2-156" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-157"><a href="#cb2-157" aria-hidden="true" tabindex="-1"></a><span class="fu">### Overhead accounting</span></span>
+<span id="cb2-158"><a href="#cb2-158" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-159"><a href="#cb2-159" aria-hidden="true" tabindex="-1"></a>The wall-clock gap <span class="in">`parallel − serial`</span> is dominated by:</span>
+<span id="cb2-160"><a href="#cb2-160" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-161"><a href="#cb2-161" aria-hidden="true" tabindex="-1"></a><span class="ss">* </span>**Pool/worker spawn.** Even with <span class="in">`fork`</span>, creating the pool and its workers is</span>
+<span id="cb2-162"><a href="#cb2-162" aria-hidden="true" tabindex="-1"></a>  a fixed cost paid once per run (the pool is created lazily on the first</span>
+<span id="cb2-163"><a href="#cb2-163" aria-hidden="true" tabindex="-1"></a>  non-empty batch and reused across levels, so it is *not* paid per level).</span>
+<span id="cb2-164"><a href="#cb2-164" aria-hidden="true" tabindex="-1"></a><span class="ss">* </span>**Pickling.** Each task ships a <span class="in">`µ`</span> vector (tiny) and returns an</span>
+<span id="cb2-165"><a href="#cb2-165" aria-hidden="true" tabindex="-1"></a>  <span class="in">`(eigenvalues, eigenvectors)`</span> block (<span class="in">`n_dof × k`</span> floats) — the return pickle</span>
+<span id="cb2-166"><a href="#cb2-166" aria-hidden="true" tabindex="-1"></a>  grows with <span class="in">`n_dof`</span> and is the per-solve tax that only pays off once the solve</span>
+<span id="cb2-167"><a href="#cb2-167" aria-hidden="true" tabindex="-1"></a>  itself is expensive enough.</span>
+<span id="cb2-168"><a href="#cb2-168" aria-hidden="true" tabindex="-1"></a><span class="ss">* </span>**Barrier synchronisation.** The region freeze/split decision is a hard</span>
+<span id="cb2-169"><a href="#cb2-169" aria-hidden="true" tabindex="-1"></a>  per-level barrier; a level cannot start its solves until the previous level's</span>
+<span id="cb2-170"><a href="#cb2-170" aria-hidden="true" tabindex="-1"></a>  results are fully integrated.</span>
+<span id="cb2-171"><a href="#cb2-171" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-172"><a href="#cb2-172" aria-hidden="true" tabindex="-1"></a>The crossover where parallelism wins requires a larger <span class="in">`n_dof`</span> (so each solve</span>
+<span id="cb2-173"><a href="#cb2-173" aria-hidden="true" tabindex="-1"></a>dwarfs its pickle), more flagged edges per level (so the bounded pool stays</span>
+<span id="cb2-174"><a href="#cb2-174" aria-hidden="true" tabindex="-1"></a>saturated), or deeper refinement (so the fixed spawn cost amortises). The</span>
+<span id="cb2-175"><a href="#cb2-175" aria-hidden="true" tabindex="-1"></a>bounded cases above sit entirely in the overhead-bound regime; the</span>
+<span id="cb2-176"><a href="#cb2-176" aria-hidden="true" tabindex="-1"></a>crossover itself is **measured** in the next section.</span>
+<span id="cb2-177"><a href="#cb2-177" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-178"><a href="#cb2-178" aria-hidden="true" tabindex="-1"></a><span class="fu">### Three regimes, and the BLAS-oversubscription fix</span></span>
+<span id="cb2-179"><a href="#cb2-179" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-180"><a href="#cb2-180" aria-hidden="true" tabindex="-1"></a>Sweeping <span class="in">`n_dof`</span> on the 2D problem (four workers) makes the full picture</span>
+<span id="cb2-181"><a href="#cb2-181" aria-hidden="true" tabindex="-1"></a>concrete:</span>
+<span id="cb2-182"><a href="#cb2-182" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-183"><a href="#cb2-183" aria-hidden="true" tabindex="-1"></a>| n_dof | per-solve | serial | parallel | raw speedup |</span>
+<span id="cb2-184"><a href="#cb2-184" aria-hidden="true" tabindex="-1"></a>|------:|----------:|-------:|---------:|------------:|</span>
+<span id="cb2-185"><a href="#cb2-185" aria-hidden="true" tabindex="-1"></a>| 196 | 3 ms | 48 ms | 186 ms | 0.26× |</span>
+<span id="cb2-186"><a href="#cb2-186" aria-hidden="true" tabindex="-1"></a>| 1 521 | 11 ms | 200 ms | 285 ms | 0.70× |</span>
+<span id="cb2-187"><a href="#cb2-187" aria-hidden="true" tabindex="-1"></a>| 4 761 | 37 ms | 553 ms | 585 ms | 0.95× |</span>
+<span id="cb2-188"><a href="#cb2-188" aria-hidden="true" tabindex="-1"></a>| 9 801 | 105 ms | 1689 ms | 1340 ms | **1.26×** |</span>
+<span id="cb2-189"><a href="#cb2-189" aria-hidden="true" tabindex="-1"></a>| 16 641 | 373 ms | 5656 ms | 4309 ms | **1.31×** |</span>
+<span id="cb2-190"><a href="#cb2-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-191"><a href="#cb2-191" aria-hidden="true" tabindex="-1"></a>Three regimes: **(1) overhead-bound** (<span class="in">`n_dof &lt; ~2k`</span>) — pool spawn + result</span>
+<span id="cb2-192"><a href="#cb2-192" aria-hidden="true" tabindex="-1"></a>pickling exceed the sub-10 ms solves, raw speedup <span class="in">`&lt; 1`</span>; **(2) crossover**</span>
+<span id="cb2-193"><a href="#cb2-193" aria-hidden="true" tabindex="-1"></a>(<span class="in">`n_dof ~ 5k`</span>) — solves grow heavy enough to amortise the overhead; **(3) win**</span>
+<span id="cb2-194"><a href="#cb2-194" aria-hidden="true" tabindex="-1"></a>(<span class="in">`n_dof ≥ ~10k`</span>) — parallel is genuinely faster. The real §4.4 6D</span>
+<span id="cb2-195"><a href="#cb2-195" aria-hidden="true" tabindex="-1"></a>problem (<span class="in">`n_dof ≈ 6000`</span>) sits right at the crossover.</span>
+<span id="cb2-196"><a href="#cb2-196" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-197"><a href="#cb2-197" aria-hidden="true" tabindex="-1"></a>That regime-3 win only holds **because each worker is pinned to one BLAS</span>
+<span id="cb2-198"><a href="#cb2-198" aria-hidden="true" tabindex="-1"></a>thread** (the worker-pool configuration's default). Without it,</span>
+<span id="cb2-199"><a href="#cb2-199" aria-hidden="true" tabindex="-1"></a>each worker's ARPACK shift-invert spawns an all-core BLAS, so several worker</span>
+<span id="cb2-200"><a href="#cb2-200" aria-hidden="true" tabindex="-1"></a>processes × all-core BLAS oversubscribe the CPU and *collapse* the speedup —</span>
+<span id="cb2-201"><a href="#cb2-201" aria-hidden="true" tabindex="-1"></a>measured **0.51× at `n_dof = 16641`**, versus **1.31×** with pinning. The pin is</span>
+<span id="cb2-202"><a href="#cb2-202" aria-hidden="true" tabindex="-1"></a>applied per-worker by runtime thread-pool limiting — the only mechanism</span>
+<span id="cb2-203"><a href="#cb2-203" aria-hidden="true" tabindex="-1"></a>that works under <span class="in">`fork`</span>, where <span class="in">`OMP_NUM_THREADS`</span> is read by BLAS at import,</span>
+<span id="cb2-204"><a href="#cb2-204" aria-hidden="true" tabindex="-1"></a>before the worker forks; the serial path's multithreaded BLAS is untouched.</span>
+<span id="cb2-205"><a href="#cb2-205" aria-hidden="true" tabindex="-1"></a>Equivalence is unchanged by the thread count (pinned ≡ unpinned ≡ serial,</span>
+<span id="cb2-206"><a href="#cb2-206" aria-hidden="true" tabindex="-1"></a>bit-for-bit) — pinning trades only *how* each solve uses cores, never *what* it</span>
+<span id="cb2-207"><a href="#cb2-207" aria-hidden="true" tabindex="-1"></a>computes. The worker count defaults to two fewer than the CPU count, so the</span>
+<span id="cb2-208"><a href="#cb2-208" aria-hidden="true" tabindex="-1"></a>pinned single-thread workers fill the cores without starving the OS or the</span>
+<span id="cb2-209"><a href="#cb2-209" aria-hidden="true" tabindex="-1"></a>main process.</span>
+<span id="cb2-210"><a href="#cb2-210" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-211"><a href="#cb2-211" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-212"><a href="#cb2-212" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-213"><a href="#cb2-213" aria-hidden="true" tabindex="-1"></a><span class="fu">## Provenance</span></span>
+<span id="cb2-214"><a href="#cb2-214" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-215"><a href="#cb2-215" aria-hidden="true" tabindex="-1"></a>The measurements were produced by an instrumented driver in the project</span>
+<span id="cb2-216"><a href="#cb2-216" aria-hidden="true" tabindex="-1"></a>repository. Per-case artifacts record the equivalence verdict, the raw</span>
+<span id="cb2-217"><a href="#cb2-217" aria-hidden="true" tabindex="-1"></a>wall-clock, the measured-vs-projected comparison, and the 6D caps. The</span>
+<span id="cb2-218"><a href="#cb2-218" aria-hidden="true" tabindex="-1"></a>wall-clock numbers are a point-in-time measurement on one machine, not a pinned</span>
+<span id="cb2-219"><a href="#cb2-219" aria-hidden="true" tabindex="-1"></a>invariant — the pinned guarantee is the *equivalence*, enforced by a</span>
+<span id="cb2-220"><a href="#cb2-220" aria-hidden="true" tabindex="-1"></a>regression test.</span>
+<span id="cb2-221"><a href="#cb2-221" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-222"><a href="#cb2-222" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; **Out of scope.** The region-aware reduced-order-model evaluation path</span></span>
+<span id="cb2-223"><a href="#cb2-223" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; remains unimplemented — the parallel executor never calls it (it parallelises</span></span>
+<span id="cb2-224"><a href="#cb2-224" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; *refinement* solves only). That is a separate follow-up to the</span></span>
+<span id="cb2-225"><a href="#cb2-225" aria-hidden="true" tabindex="-1"></a><span class="at">&gt; domain-decomposition prototype.</span></span>
+<span id="cb2-226"><a href="#cb2-226" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-227"><a href="#cb2-227" aria-hidden="true" tabindex="-1"></a>---</span>
+<span id="cb2-228"><a href="#cb2-228" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb2-229"><a href="#cb2-229" aria-hidden="true" tabindex="-1"></a>**Related.** The projection this realises:</span>
+<span id="cb2-230"><a href="#cb2-230" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">region-parallel-speedup.md</span><span class="co">](region-parallel-speedup.md)</span>. The decomposition</span>
+<span id="cb2-231"><a href="#cb2-231" aria-hidden="true" tabindex="-1"></a>design and the freeze/split criterion are set out in the domain-decomposition</span>
+<span id="cb2-232"><a href="#cb2-232" aria-hidden="true" tabindex="-1"></a>design note, not yet published. The interface-scalability frontier the</span>
+<span id="cb2-233"><a href="#cb2-233" aria-hidden="true" tabindex="-1"></a>high-dimensional follow-up inherits — whether the region boundary, a</span>
+<span id="cb2-234"><a href="#cb2-234" aria-hidden="true" tabindex="-1"></a><span class="in">`(d−1)`</span>-dimensional surface of never-compressed full-fidelity snapshots, stays</span>
+<span id="cb2-235"><a href="#cb2-235" aria-hidden="true" tabindex="-1"></a>cheap as the parameter dimension grows — belongs to a companion catalogue of</span>
+<span id="cb2-236"><a href="#cb2-236" aria-hidden="true" tabindex="-1"></a>open scalability problems, not yet published.</span></code><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></pre></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>

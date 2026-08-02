@@ -1,0 +1,2142 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en"><head>
+
+<meta charset="utf-8">
+<meta name="generator" content="quarto-1.5.57">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+
+
+<title>A 2-D diffusion eigenproblem with a one-parameter coefficient – The adaptive-greedy parametric eigenvalue solver</title>
+<style>
+code{white-space: pre-wrap;}
+span.smallcaps{font-variant: small-caps;}
+div.columns{display: flex; gap: min(4vw, 1.5em);}
+div.column{flex: auto; overflow-x: auto;}
+div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+ul.task-list{list-style: none;}
+ul.task-list li input[type="checkbox"] {
+  width: 0.8em;
+  margin: 0 0.8em 0.2em -1em; /* quarto-specific, see https://github.com/quarto-dev/quarto-cli/issues/4556 */ 
+  vertical-align: middle;
+}
+/* CSS for syntax highlighting */
+pre > code.sourceCode { white-space: pre; position: relative; }
+pre > code.sourceCode > span { line-height: 1.25; }
+pre > code.sourceCode > span:empty { height: 1.2em; }
+.sourceCode { overflow: visible; }
+code.sourceCode > span { color: inherit; text-decoration: inherit; }
+div.sourceCode { margin: 1em 0; }
+pre.sourceCode { margin: 0; }
+@media screen {
+div.sourceCode { overflow: auto; }
+}
+@media print {
+pre > code.sourceCode { white-space: pre-wrap; }
+pre > code.sourceCode > span { display: inline-block; text-indent: -5em; padding-left: 5em; }
+}
+pre.numberSource code
+  { counter-reset: source-line 0; }
+pre.numberSource code > span
+  { position: relative; left: -4em; counter-increment: source-line; }
+pre.numberSource code > span > a:first-child::before
+  { content: counter(source-line);
+    position: relative; left: -1em; text-align: right; vertical-align: baseline;
+    border: none; display: inline-block;
+    -webkit-touch-callout: none; -webkit-user-select: none;
+    -khtml-user-select: none; -moz-user-select: none;
+    -ms-user-select: none; user-select: none;
+    padding: 0 4px; width: 4em;
+  }
+pre.numberSource { margin-left: 3em;  padding-left: 4px; }
+div.sourceCode
+  {   }
+@media screen {
+pre > code.sourceCode > span > a:first-child::before { text-decoration: underline; }
+}
+</style>
+
+
+<script src="../site_libs/quarto-nav/quarto-nav.js"></script>
+<script src="../site_libs/quarto-nav/headroom.min.js"></script>
+<script src="../site_libs/clipboard/clipboard.min.js"></script>
+<script src="../site_libs/quarto-search/autocomplete.umd.js"></script>
+<script src="../site_libs/quarto-search/fuse.min.js"></script>
+<script src="../site_libs/quarto-search/quarto-search.js"></script>
+<meta name="quarto:offset" content="../">
+<script src="../site_libs/quarto-html/quarto.js"></script>
+<script src="../site_libs/quarto-html/popper.min.js"></script>
+<script src="../site_libs/quarto-html/tippy.umd.min.js"></script>
+<script src="../site_libs/quarto-html/anchor.min.js"></script>
+<link href="../site_libs/quarto-html/tippy.css" rel="stylesheet">
+<link href="../site_libs/quarto-html/quarto-syntax-highlighting.css" rel="stylesheet" id="quarto-text-highlighting-styles">
+<script src="../site_libs/bootstrap/bootstrap.min.js"></script>
+<link href="../site_libs/bootstrap/bootstrap-icons.css" rel="stylesheet">
+<link href="../site_libs/bootstrap/bootstrap.min.css" rel="stylesheet" id="quarto-bootstrap" data-mode="light">
+<script id="quarto-search-options" type="application/json">{
+  "location": "navbar",
+  "copy-button": false,
+  "collapse-after": 3,
+  "panel-placement": "end",
+  "type": "overlay",
+  "limit": 50,
+  "keyboard-shortcut": [
+    "f",
+    "/",
+    "s"
+  ],
+  "show-item-context": false,
+  "language": {
+    "search-no-results-text": "No results",
+    "search-matching-documents-text": "matching documents",
+    "search-copy-link-title": "Copy link to search",
+    "search-hide-matches-text": "Hide additional matches",
+    "search-more-match-text": "more match in this document",
+    "search-more-matches-text": "more matches in this document",
+    "search-clear-button-title": "Clear",
+    "search-text-placeholder": "",
+    "search-detached-cancel-button-title": "Cancel",
+    "search-submit-button-title": "Submit",
+    "search-label": "Search"
+  }
+}</script>
+<script>
+// Collapse sidebar sections on load; only expand the one with the active page.
+(function () {
+  function collapseSidebarSections() {
+    var sections = document.querySelectorAll(".sidebar-section");
+    var activeSection = null;
+    sections.forEach(function (sec) {
+      if (sec.querySelector(".sidebar-item-text.active, .sidebar-link.active")) {
+        activeSection = sec;
+      }
+    });
+    sections.forEach(function (sec) {
+      if (sec === activeSection) return;
+      sec.classList.remove("show");
+    });
+    // Sync aria-expanded on the toggle buttons.
+    document.querySelectorAll("[data-bs-target^='#quarto-sidebar-section']").forEach(function (btn) {
+      var target = document.querySelector(btn.getAttribute("data-bs-target"));
+      if (target) {
+        btn.setAttribute("aria-expanded", target.classList.contains("show") ? "true" : "false");
+      }
+    });
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", collapseSidebarSections);
+  } else {
+    collapseSidebarSections();
+  }
+})();
+</script>
+
+<script>
+// Per-level refinement-animation widget.
+// Auto-initialises every element matching `.level-scroll[data-frames]`.
+// data-frames: comma-separated image URLs (one per refinement level).
+// data-caption: template; "{i}" → frame index + data-level-start (default 0).
+(function () {
+  function init(el) {
+    var frames = (el.dataset.frames || "")
+      .split(",").map(function (s) { return s.trim(); }).filter(Boolean);
+    if (frames.length === 0) return;
+    var captionTpl = el.dataset.caption || "L={i}";
+    var levelStart = parseInt(el.dataset.levelStart || "0", 10);
+    var img = el.querySelector("img.frame");
+    var slider = el.querySelector("input[type=range]");
+    var caption = el.querySelector(".caption .level");
+    if (!img || !slider || !caption) return;
+    slider.min = "0";
+    slider.max = String(frames.length - 1);
+    slider.step = "1";
+    if (!slider.value) slider.value = "0";
+    function render(idx) {
+      var i = Math.max(0, Math.min(frames.length - 1, idx));
+      img.src = frames[i];
+      caption.textContent = captionTpl.replace("{i}", String(i + levelStart));
+    }
+    slider.addEventListener("input", function () {
+      render(parseInt(slider.value, 10));
+    });
+    el.tabIndex = 0;
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowLeft") {
+        slider.value = String(Math.max(0, parseInt(slider.value, 10) - 1));
+        render(parseInt(slider.value, 10));
+        e.preventDefault();
+      } else if (e.key === "ArrowRight") {
+        slider.value = String(Math.min(frames.length - 1, parseInt(slider.value, 10) + 1));
+        render(parseInt(slider.value, 10));
+        e.preventDefault();
+      }
+    });
+    render(parseInt(slider.value, 10));
+  }
+  function initAll() {
+    var els = document.querySelectorAll(".level-scroll[data-frames]");
+    for (var i = 0; i < els.length; i++) init(els[i]);
+  }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAll);
+  } else {
+    initAll();
+  }
+})();
+</script>
+
+  <script>window.backupDefine = window.define; window.define = undefined;</script><script src="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.js"></script>
+  <script>document.addEventListener("DOMContentLoaded", function () {
+ var mathElements = document.getElementsByClassName("math");
+ var macros = [];
+ for (var i = 0; i < mathElements.length; i++) {
+  var texText = mathElements[i].firstChild;
+  if (mathElements[i].tagName == "SPAN") {
+   katex.render(texText.data, mathElements[i], {
+    displayMode: mathElements[i].classList.contains('display'),
+    throwOnError: false,
+    macros: macros,
+    fleqn: false
+   });
+}}});
+  </script>
+  <script>window.define = window.backupDefine; window.backupDefine = undefined;</script><link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@latest/dist/katex.min.css">
+
+<script type="text/javascript">
+const typesetMath = (el) => {
+  if (window.MathJax) {
+    // MathJax Typeset
+    window.MathJax.typeset([el]);
+  } else if (window.katex) {
+    // KaTeX Render
+    var mathElements = el.getElementsByClassName("math");
+    var macros = [];
+    for (var i = 0; i < mathElements.length; i++) {
+      var texText = mathElements[i].firstChild;
+      if (mathElements[i].tagName == "SPAN") {
+        window.katex.render(texText.data, mathElements[i], {
+          displayMode: mathElements[i].classList.contains('display'),
+          throwOnError: false,
+          macros: macros,
+          fleqn: false
+        });
+      }
+    }
+  }
+}
+window.Quarto = {
+  typesetMath
+};
+</script>
+
+<link rel="stylesheet" href="../assets/level-scroll.css">
+</head>
+
+<body class="nav-sidebar docked nav-fixed">
+
+<div id="quarto-search-results"></div>
+  <header id="quarto-header" class="headroom fixed-top">
+    <nav class="navbar navbar-expand-lg " data-bs-theme="dark">
+      <div class="navbar-container container-fluid">
+      <div class="navbar-brand-container mx-auto">
+    <a class="navbar-brand" href="../index.html">
+    <span class="navbar-title">The adaptive-greedy parametric eigenvalue solver</span>
+    </a>
+  </div>
+            <div id="quarto-search" class="" title="Search"></div>
+          <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarCollapse" aria-controls="navbarCollapse" role="menu" aria-expanded="false" aria-label="Toggle navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+  <span class="navbar-toggler-icon"></span>
+</button>
+          <div class="collapse navbar-collapse" id="navbarCollapse">
+            <ul class="navbar-nav navbar-nav-scroll ms-auto">
+  <li class="nav-item compact">
+    <a class="nav-link" href="https://github.com/Moatazg/pevp-rebuild"> <i class="bi bi-github" role="img">
+</i> 
+<span class="menu-text"></span></a>
+  </li>  
+</ul>
+          </div> <!-- /navcollapse -->
+            <div class="quarto-navbar-tools">
+</div>
+      </div> <!-- /container-fluid -->
+    </nav>
+  <nav class="quarto-secondary-nav">
+    <div class="container-fluid d-flex">
+      <button type="button" class="quarto-btn-toggle btn" data-bs-toggle="collapse" role="button" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">
+        <i class="bi bi-layout-text-sidebar-reverse"></i>
+      </button>
+        <nav class="quarto-page-breadcrumbs" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../demonstrations.html">Demonstrations</a></li><li class="breadcrumb-item"><a href="../examples/diffusion-3-3-2.html">A 2-D diffusion eigenproblem with a one-parameter coefficient</a></li></ol></nav>
+        <a class="flex-grow-1" role="navigation" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item" aria-controls="quarto-sidebar" aria-expanded="false" aria-label="Toggle sidebar navigation" onclick="if (window.quartoToggleHeadroom) { window.quartoToggleHeadroom(); }">      
+        </a>
+    </div>
+  </nav>
+</header>
+<!-- content -->
+<div id="quarto-content" class="quarto-container page-columns page-rows-contents page-layout-article page-navbar">
+<!-- sidebar -->
+  <nav id="quarto-sidebar" class="sidebar collapse collapse-horizontal quarto-sidebar-collapse-item sidebar-navigation docked overflow-auto">
+    <div class="sidebar-menu-container"> 
+    <ul class="list-unstyled mt-1">
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true">
+ <span class="menu-text">Validation</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-1" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-1" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/spectrum-samples.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Is the finite-element substrate trustworthy?</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/affine-cache-cross-check.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Affine-cache cross-check</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true">
+ <span class="menu-text">Demonstrations</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-2" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-2" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../demonstrations.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/diffusion-3-3-2.html" class="sidebar-item-text sidebar-link active">
+ <span class="menu-text">A 2-D diffusion eigenproblem with a one-parameter coefficient</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/diffusion-3-3-3.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D diffusion eigenproblem with a two-parameter coefficient</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/elasticity-2d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">A 2-D plane-stress elasticity eigenproblem</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/elasticity-4-4-campaign.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">§4.4 6D campaign — quality demonstration at scale</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/elasticity-4-4-evidence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">§4.4 6D campaign — the correctness evidence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/rom-vs-dense.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">ROM vs dense FE sweep</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/two-chamber-resonator.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Two-Chamber Resonator — the Minimal Crossing Model</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true">
+ <span class="menu-text">Mechanisms</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-3" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-3" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../mechanisms.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/crossing-and-projection.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Persistent Π Failures at Eigenvalue Crossings</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/domain-decomposition.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Dynamic domain decomposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true">
+ <span class="menu-text">Sensitivity</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-4" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-4" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../sensitivity.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/mesh-independence.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Mesh independence</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/tolerance-perturbation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Tolerance perturbation — how load-bearing is the threshold choice?</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../examples/knob-sweep.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Knob sweep — how sensitive is the grid to the thresholds?</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true">
+ <span class="menu-text">Studies</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-5" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-5" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../studies.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Overview</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../why-this-algorithm.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Why the adaptive-greedy algorithm for parametric eigenvalue problems</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../method-comparison-1d.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Methods for the 1D Parametric Eigenvalue Problem: A Comparison Framework</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../strategy-comparison.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Refinement strategy A/B: edge-bisection vs hierarchical (measured)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../coverage-policy-validation.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Cost-Accuracy Validation of the Composite Refinement Policy π⋆</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../runtime-analysis.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Runtime analysis: the one-path verdict vs the retired span/tracking modes (measured)</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../parallel-execution.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Real Parallel Execution of Domain-Decomposition Refinement</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../region-parallel-speedup.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Projected Parallel Speedup of Dynamic Domain Decomposition</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+        <li class="sidebar-item sidebar-item-section">
+      <div class="sidebar-item-container"> 
+            <a class="sidebar-item-text sidebar-link text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true">
+ <span class="menu-text">Methodology</span></a>
+          <a class="sidebar-item-toggle text-start" data-bs-toggle="collapse" data-bs-target="#quarto-sidebar-section-6" role="navigation" aria-expanded="true" aria-label="Toggle section">
+            <i class="bi bi-chevron-right ms-2"></i>
+          </a> 
+      </div>
+      <ul id="quarto-sidebar-section-6" class="collapse list-unstyled sidebar-section depth1 show">  
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">How it works — the algorithm end to end</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Correctness Techniques in <code>pevp-rebuild</code></span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Reference correctness-demonstration techniques</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Acknowledged issues in the adaptive-greedy pEVP algorithm</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Algorithm Parity Audit</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Rebuild vs dissertation — the three-way divergence record</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open Methodological Questions for Validating the Rebuilt pEVP Algorithm</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open Research and Architecture Problems for the pEVP Rebuild</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Open-Problems Status Register</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">The partial sparse grid, formally — admissible subtree ↔︎ lower set, directional surplus, hanging nodes</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Classifying Eigenvalue-Crossing Type Beyond the Block Matrix</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Sheet decomposition: matching-driven hypersurfaces and the plaquette holonomy certificate</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Dynamic Domain Decomposition of the Parameter Space</span></a>
+  </div>
+</li>
+          <li class="sidebar-item">
+  <div class="sidebar-item-container"> 
+  <a href="../methodology-unpublished.html" class="sidebar-item-text sidebar-link">
+ <span class="menu-text">Hierarchical refinement strategy and the one-sided parent↔︎child verdict</span></a>
+  </div>
+</li>
+      </ul>
+  </li>
+    </ul>
+    </div>
+</nav>
+<div id="quarto-sidebar-glass" class="quarto-sidebar-collapse-item" data-bs-toggle="collapse" data-bs-target=".quarto-sidebar-collapse-item"></div>
+<!-- margin-sidebar -->
+    <div id="quarto-margin-sidebar" class="sidebar margin-sidebar">
+        <nav id="TOC" role="doc-toc" class="toc-active">
+    <h2 id="toc-title">On this page</h2>
+   
+  <ul>
+  <li><a href="#why-this-example" id="toc-why-this-example" class="nav-link active" data-scroll-target="#why-this-example">Why this example</a></li>
+  <li><a href="#the-model" id="toc-the-model" class="nav-link" data-scroll-target="#the-model">The model</a></li>
+  <li><a href="#a-single-subinterval" id="toc-a-single-subinterval" class="nav-link" data-scroll-target="#a-single-subinterval">A single subinterval</a></li>
+  <li><a href="#discretisation" id="toc-discretisation" class="nav-link" data-scroll-target="#discretisation">Discretisation</a></li>
+  <li><a href="#window-mode-the-faithful-reproduction" id="toc-window-mode-the-faithful-reproduction" class="nav-link" data-scroll-target="#window-mode-the-faithful-reproduction">Window mode — the faithful reproduction</a>
+  <ul class="collapse">
+  <li><a href="#reference-spectrum" id="toc-reference-spectrum" class="nav-link" data-scroll-target="#reference-spectrum">Reference spectrum</a></li>
+  <li><a href="#adaptive-grid-evolution" id="toc-adaptive-grid-evolution" class="nav-link" data-scroll-target="#adaptive-grid-evolution">Adaptive grid evolution</a></li>
+  <li><a href="#per-level-surrogate" id="toc-per-level-surrogate" class="nav-link" data-scroll-target="#per-level-surrogate">Per-level surrogate</a></li>
+  <li><a href="#a-posteriori-projection-matrices" id="toc-a-posteriori-projection-matrices" class="nav-link" data-scroll-target="#a-posteriori-projection-matrices">A-posteriori projection matrices</a></li>
+  <li><a href="#the-avoided-crossing-at-0.7750.85" id="toc-the-avoided-crossing-at-0.7750.85" class="nav-link" data-scroll-target="#the-avoided-crossing-at-0.7750.85">The avoided crossing at <span class="math inline">[0.775,\,0.85]</span></a></li>
+  <li><a href="#error-table" id="toc-error-table" class="nav-link" data-scroll-target="#error-table">Error table</a></li>
+  <li><a href="#verdict-map" id="toc-verdict-map" class="nav-link" data-scroll-target="#verdict-map">Verdict map</a></li>
+  </ul></li>
+  <li><a href="#firstk-mode-the-fixed-band-approximation" id="toc-firstk-mode-the-fixed-band-approximation" class="nav-link" data-scroll-target="#firstk-mode-the-fixed-band-approximation">FirstK mode — the fixed-band approximation</a>
+  <ul class="collapse">
+  <li><a href="#reference-spectrum-1" id="toc-reference-spectrum-1" class="nav-link" data-scroll-target="#reference-spectrum-1">Reference spectrum</a></li>
+  <li><a href="#adaptive-grid-evolution-1" id="toc-adaptive-grid-evolution-1" class="nav-link" data-scroll-target="#adaptive-grid-evolution-1">Adaptive grid evolution</a></li>
+  <li><a href="#per-level-surrogate-1" id="toc-per-level-surrogate-1" class="nav-link" data-scroll-target="#per-level-surrogate-1">Per-level surrogate</a></li>
+  <li><a href="#a-posteriori-projection-matrices-1" id="toc-a-posteriori-projection-matrices-1" class="nav-link" data-scroll-target="#a-posteriori-projection-matrices-1">A-posteriori projection matrices</a></li>
+  <li><a href="#error-table-1" id="toc-error-table-1" class="nav-link" data-scroll-target="#error-table-1">Error table</a></li>
+  <li><a href="#what-firstk-is-blind-to" id="toc-what-firstk-is-blind-to" class="nav-link" data-scroll-target="#what-firstk-is-blind-to">What FirstK is blind to</a></li>
+  </ul></li>
+  <li><a href="#comparison-firstk-vs-window" id="toc-comparison-firstk-vs-window" class="nav-link" data-scroll-target="#comparison-firstk-vs-window">Comparison: FirstK vs Window</a></li>
+  <li><a href="#side-by-side-with-the-original-matlab" id="toc-side-by-side-with-the-original-matlab" class="nav-link" data-scroll-target="#side-by-side-with-the-original-matlab">Side-by-side with the original MATLAB</a></li>
+  </ul>
+</nav>
+    </div>
+<!-- main -->
+<main class="content" id="quarto-document-content">
+
+<header id="title-block-header" class="quarto-title-block default"><nav class="quarto-page-breadcrumbs quarto-title-breadcrumbs d-none d-lg-block" aria-label="breadcrumb"><ol class="breadcrumb"><li class="breadcrumb-item"><a href="../demonstrations.html">Demonstrations</a></li><li class="breadcrumb-item"><a href="../examples/diffusion-3-3-2.html">A 2-D diffusion eigenproblem with a one-parameter coefficient</a></li></ol></nav>
+<div class="quarto-title">
+<div class="quarto-title-block"><div><h1 class="title">A 2-D diffusion eigenproblem with a one-parameter coefficient</h1><button type="button" class="btn code-tools-button" id="quarto-code-tools-source"><i class="bi"></i> Code</button></div></div>
+</div>
+
+
+
+<div class="quarto-title-meta">
+
+    
+  
+    
+  </div>
+  
+
+
+</header>
+
+
+<p>This is the reference example for the whole method: a scalar diffusion eigenproblem on the unit square whose coefficient depends on a single scalar parameter <span class="math inline">\mu</span>. The spatial problem is <strong>two-dimensional</strong>; the parameter it is swept over is <strong>one-dimensional</strong>, <span class="math inline">\mu \in [0.4, 1]</span>. Those two dimensions are unrelated and worth keeping apart — everything below is “2-D in space, 1-D in parameter”.</p>
+<p>The page is built in the order the method itself works. First the shared groundwork: the model, the matching operation on a single subinterval, and the discretisation. Then each of the two <strong>operating modes</strong> gets a full, self-contained treatment, run to its own convergence: <strong>Window mode</strong> — the faithful reproduction of the published 1-D grid — followed by <strong>FirstK mode</strong> — a fixed-band approximation. The page closes with an honest side-by-side comparison of the two.</p>
+<p><strong>Related pages</strong></p>
+<ul>
+<li><a href="../examples/rom-vs-dense.html">ROM vs dense sweep</a> — how accurately the converged surrogate reproduces a dense solve at arbitrary <span class="math inline">\mu</span>.</li>
+<li><a href="../examples/tolerance-perturbation.html">Tolerance perturbation</a> — evidence that the tolerance values used here are load-bearing.</li>
+<li><a href="../examples/knob-sweep.html">Knob sweep</a> — how the grid responds as the verdict thresholds move.</li>
+<li><a href="../examples/diffusion-3-3-3.html">Two-parameter sweep</a> — the same PDE over a 2-D parameter box.</li>
+</ul>
+<section id="why-this-example" class="level2">
+<h2 class="anchored" data-anchor-id="why-this-example">Why this example</h2>
+<p>It is the smallest problem that shows the full phenomenon the method exists to handle: eigenvalue <strong>branches that approach and exchange character</strong> as the parameter varies, and an adaptive grid that must <strong>find those events on its own</strong> and refine around them. It is small enough to solve densely for ground truth, so every claim the adaptive loop makes can be checked against a known answer — which is why the accuracy and robustness studies (<a href="../examples/rom-vs-dense.html">ROM vs dense</a>, <a href="../examples/tolerance-perturbation.html">tolerance perturbation</a>) use it as their reference. If the method works here, the machinery is sound; larger problems (a 2-D parameter box, 6-D elasticity) add scale, not new ideas.</p>
+</section>
+<section id="the-model" class="level2">
+<h2 class="anchored" data-anchor-id="the-model">The model</h2>
+<p>Find <span class="math inline">(\lambda, u) \in \mathbb{R} \times H_0^1(\Omega)</span> on the unit square <span class="math inline">\Omega = [0,1]^2</span> such that</p>
+<p><span class="math display">
+-\nabla \cdot \bigl(c(\mu)\,\nabla u\bigr) \;=\; \lambda\,u
+\quad \text{in } \Omega,
+\qquad
+u = 0 \text{ on } \partial\Omega .
+</span></p>
+<p>In weak form this is the generalised eigenproblem: find <span class="math inline">(\lambda, u) \in \mathbb{R} \times H_0^1(\Omega)</span> with</p>
+<p><span class="math display">
+a(u, v;\,\mu) \;=\; \lambda\, b(u, v) \qquad \forall\, v \in H_0^1(\Omega),
+</span> <span class="math display">
+a(u, v;\,\mu) = \int_\Omega \bigl(c(\mu)\,\nabla u\bigr)\cdot \nabla v \, \mathrm{d}x,
+\qquad
+b(u, v) = \int_\Omega u\,v \, \mathrm{d}x .
+</span></p>
+<p>The coefficient is a <strong>global, space-constant</strong> <span class="math inline">2\times 2</span> matrix:</p>
+<p><span class="math display">
+c(\mu) \;=\;
+\begin{bmatrix} \mu^{-2} &amp; 1 \\[2pt] 1 &amp; 0.7^{-2} \end{bmatrix},
+\qquad \mu \in [0.4,\, 1] .
+</span></p>
+<p>Only the <span class="math inline">(1,1)</span> entry varies with <span class="math inline">\mu</span>; the other three are fixed. Because the weak form is <strong>affine in the entries of <span class="math inline">c</span></strong>, the stiffness matrix decomposes into four fixed tensor-component matrices <span class="math inline">K_{ij}</span> (one per entry of <span class="math inline">c</span>), assembled once:</p>
+<p><span class="math display">
+K(\mu) \;=\; \sum_{i,j \in \{1,2\}} c_{ij}(\mu)\, K_{ij}
+\;=\; \mu^{-2}\,K_{11} \;+\; \bigl(K_{12} + K_{21} + 0.7^{-2}\,K_{22}\bigr).
+</span></p>
+<p>Each parameter point then costs four cached component contractions plus one eigensolve — no re-meshing, no per-<span class="math inline">\mu</span> quadrature. This affine structure is what the surrogate construction relies on.</p>
+</section>
+<section id="a-single-subinterval" class="level2">
+<h2 class="anchored" data-anchor-id="a-single-subinterval">A single subinterval</h2>
+<p>Before any sweep, consider the method on a <strong>single subinterval</strong> <span class="math inline">[\mu_1, \mu_2] = [0.4, 0.7]</span> — the atomic operation the adaptive loop repeats on every edge of its grid, and the reference’s worked §3.3.1 example. Understand one edge and the whole loop is just “do this everywhere, bisect where it fails”.</p>
+<p>Inside the spectral window <span class="math inline">I_\lambda = [0, 270]</span> there are four eigenvalues at <span class="math inline">\mu_1 = 0.4</span> and nine at <span class="math inline">\mu_2 = 0.7</span> (the reference reports exactly this band count). Two steps:</p>
+<ol type="1">
+<li><strong>A-priori matching.</strong> Build the cost matrix <span class="math inline">D_{j\ell}</span> pairing each <span class="math inline">\mu_1</span>-band <span class="math inline">j</span> with each <span class="math inline">\mu_2</span>-band <span class="math inline">\ell</span> — a weighted sum of eigenvalue distance (weight <span class="math inline">1</span>) and eigenvector misalignment (weight <span class="math inline">200</span>, measured by the <span class="math inline">M</span>-inner-product principal angle). The optimal (Hungarian) assignment matches the four <span class="math inline">\mu_1</span>-bands to <span class="math inline">\mu_2</span>-bands <span class="math inline">\sigma^\star = (1, 2, 5, 8)</span> (1-indexed).</li>
+<li><strong>A-posteriori certification.</strong> Form the projection matrix <span class="math inline">\Pi_{j\ell} = v_j(\mu_1)^\top M(\bar\mu)\, v_\ell(\mu_2)</span> on the matched core and apply the relative threshold <span class="math inline">t_\pi = 0.21</span> (the reference’s stated value for this worked subinterval). The first matched pair is uniquely supported → <strong>certified</strong>; the second has a competing off-pair entry → <strong>refine</strong>; the higher pairs sit in a shared near-degenerate cluster → <strong>cluster</strong>.</li>
+</ol>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/diffusion-1param/subinterval-matching.png" class="img-fluid figure-img"></p>
+<figcaption><strong>Subinterval matching</strong> on <span class="math inline">[0.4, 0.7]</span>. <em>Left:</em> cost matrix <span class="math inline">D</span> (4 bands at <span class="math inline">\mu=0.4</span> × 9 at <span class="math inline">\mu=0.7</span>); the optimal assignment <span class="math inline">\sigma^\star = (1,2,5,8)</span> is outlined in red. <em>Right:</em> <span class="math inline">|\Pi|</span> on the matched core with each pair’s <span class="math inline">t_\pi = 0.21</span> verdict (green certified, red refine, orange cluster).</figcaption>
+</figure>
+</div>
+<p>A <strong>refine</strong> verdict on any edge tells the loop to bisect it and re-test the two halves. Both sweeps below are exactly this operation on an adaptively growing grid — they differ only in <em>how many bands</em> each grid point carries.</p>
+</section>
+<section id="discretisation" class="level2">
+<h2 class="anchored" data-anchor-id="discretisation">Discretisation</h2>
+<p>Both runs share the same spatial discretisation and parameter domain; only the spectral bookkeeping (and so the tolerances tied to it) differs between modes.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Quantity</th>
+<th>Value</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Mesh</td>
+<td><span class="math inline">\texttt{mesh\_n} = 64</span>, P1 triangulation</td>
+<td>spatial discretisation (rebuild choice; fine enough that the crossings below are mesh-independent)</td>
+</tr>
+<tr class="even">
+<td>Parameter box</td>
+<td><span class="math inline">\mu \in [0.4,\, 1.0]</span>, <span class="math inline">d_{\text{param}} = 1</span></td>
+<td>parameter domain</td>
+</tr>
+<tr class="odd">
+<td>Max refinement levels</td>
+<td><span class="math inline">8</span> (Window terminates at <span class="math inline">L = 3</span>, FirstK at <span class="math inline">L = 1</span>)</td>
+<td>iteration cap</td>
+</tr>
+</tbody>
+</table>
+<p>The two operating modes split here:</p>
+<ul>
+<li><strong>Window mode</strong> keeps whichever eigenvalues fall inside a fixed spectral window <span class="math inline">I_\lambda = [0, 270]</span>, so per-node rank is <strong>ragged</strong> (4 bands at <span class="math inline">\mu = 0.4</span>, 9 at <span class="math inline">\mu = 0.7</span>). This is how the reference 1-D example was actually computed.</li>
+<li><strong>FirstK mode</strong> keeps a fixed number <span class="math inline">n_{\text{eigs}} = 6</span> of the smallest bands at every node. This is the rebuild’s fixed-band approximation.</li>
+</ul>
+<p>Each mode is treated in full below, on its own honest tolerances, before they are compared.</p>
+</section>
+<section id="window-mode-the-faithful-reproduction" class="level2">
+<h2 class="anchored" data-anchor-id="window-mode-the-faithful-reproduction">Window mode — the faithful reproduction</h2>
+<p>This is the run that reproduces the reference 1-D grid, because the §3.3.2 example was itself computed in <strong>window mode</strong>. Snapshots are <strong>ragged</strong>: each parameter point keeps whatever eigenpairs fall inside the fixed window</p>
+<p><span class="math display">
+I_\lambda = [0,\, 270]
+</span></p>
+<p>(the reference’s stated window — the band counts it reports, four eigenvalues at <span class="math inline">\mu = 0.4</span> and nine at <span class="math inline">\mu = 0.7</span>, are reproduced exactly). The verdicts use the one a-posteriori (Hungarian) path with anchored-absolute pruning at <span class="math inline">(t_\pi = 0.21,\,
+t_\lambda = 0.085)</span>: <span class="math inline">t_\pi = 0.21</span> is the §3.3.1 subinterval value above, and <span class="math inline">t_\lambda = 0.085</span> is the MATLAB clustering tolerance — the pair is validated by reproducing the published <span class="math inline">L=0\ldots L=3</span> grid exactly (below). A surplus band that merely <strong>enters or leaves</strong> the window between adjacent nodes is certified by a row-<span class="math inline">\ell_2</span>-norm test (the reference’s Algorithm 6 “certify, don’t refine” gate) rather than forcing refinement; those enter/exit events are recorded for introspection but do not drive the grid.</p>
+<section id="reference-spectrum" class="level3">
+<h3 class="anchored" data-anchor-id="reference-spectrum">Reference spectrum</h3>
+<p>The ground truth: a dense <span class="math inline">\mu</span>-sweep, solved <strong>directly on a window</strong> <span class="math inline">[0, 400]</span> — each <span class="math inline">\mu</span>-point returns <em>exactly</em> the eigenpairs inside that band (a ragged window solve, nothing above <span class="math inline">400</span> computed, nothing clipped) — and drawn in <strong>character-tracked branch order</strong>: each curve follows one eigenfunction (matched by mass-overlap across the sweep), so where two branches exchange energetic order the figure draws a genuine crossing instead of sorting it away. The parameter is one-dimensional, so every crossing here is <em>avoided</em> — the gap stays positive, there is no true degeneracy (that needs two free parameters). But an avoided crossing <strong>still exchanges eigenfunction character</strong>: the two branches approach, swap which one is higher, and separate, so their curves cross. This example carries four such swaps — bands 3↔︎4 (near <span class="math inline">\mu \approx 0.45</span> and again <span class="math inline">\approx 0.86</span>), 5↔︎6 (<span class="math inline">\approx 0.72</span>), and 7↔︎8 (<span class="math inline">\approx 0.81</span>) — visible as X crossings in the low bands. The grey strip is the algorithm’s kept window <span class="math inline">I_\lambda = [0, 270]</span>; the sweep window runs a little higher so the bands that descend into the kept window as <span class="math inline">\mu</span> grows are visible entering from above. The adaptive loop has no access to this; it must rediscover the crossings from local edge tests alone.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/diffusion-1param/window/reference-spectrum.png" class="img-fluid figure-img"></p>
+<figcaption><strong>Reference spectrum</strong>, solved directly on the window <span class="math inline">[0, 400]</span> (no clipping); the grey strip is the algorithm’s kept window <span class="math inline">I_\lambda=[0,270]</span>. Branches are <strong>character-tracked</strong>, so the four avoided crossings show as X crossings where two curves exchange order. The band-7/8 <strong>avoided crossing</strong> near <span class="math inline">\mu \approx 0.81</span> — where two branches approach to a minimum gap of <span class="math inline">\approx 13.7</span> and separate, exchanging eigenfunction character without touching (an <em>avoided</em> crossing: the gap never reaches zero) — is the event refinement concentrates on. Bands descend into the window from above as <span class="math inline">\mu</span> grows.</figcaption>
+</figure>
+</div>
+</section>
+<section id="adaptive-grid-evolution" class="level3">
+<h3 class="anchored" data-anchor-id="adaptive-grid-evolution">Adaptive grid evolution</h3>
+<p>Drag the slider (or use ←/→ when focused) to step through <span class="math inline">L = 0..3</span>. Nodes are coloured by insertion level; the loop bisects only edges flagged for refinement, so nodes pile up around the crossing region. The grid grows <span class="math inline">3 \to 5 \to 7 \to
+8</span> nodes.</p>
+<div class="level-scroll" data-frames="../figures/diffusion-1param/window/grid-level-1.png,../figures/diffusion-1param/window/grid-level-2.png,../figures/diffusion-1param/window/grid-level-3.png,../figures/diffusion-1param/window/grid-level-4.png" data-caption="Adaptive grid (Window) at L={i}" data-level-start="0">
+  <img class="frame" src="../figures/diffusion-1param/window/grid-level-1.png" alt="Adaptive grid per refinement level (Window)">
+  <input type="range" min="0" max="3" step="1" value="0">
+  <div class="caption"><span class="level">Adaptive grid (Window) at L=0</span></div>
+</div>
+</section>
+<section id="per-level-surrogate" class="level3">
+<h3 class="anchored" data-anchor-id="per-level-surrogate">Per-level surrogate</h3>
+<p>Solid coloured curves are the surrogate, reconstructed from the greedy grid’s <strong>own stored matchings</strong> (not re-matched) by the same fixed-slot reshuffle used for the reference spectrum; dashed grey is the dense reference. Branch <span class="math inline">k</span> of the surrogate keeps one colour across every level and follows branch <span class="math inline">k</span> of the reference <em>through</em> a crossing. Scroll through <span class="math inline">L = 0..3</span> to watch the surrogate converge as the grid refines. Where a band drops out of <span class="math inline">[0, 270]</span> between adjacent nodes the window surrogate shows an honest <strong>gap in a fixed slot</strong> — the broken curve is one branch keeping its colour across a window exit/entry, never a connector to an unrelated branch.</p>
+<div class="level-scroll" data-frames="../figures/diffusion-1param/window/surrogate-level-1.png,../figures/diffusion-1param/window/surrogate-level-2.png,../figures/diffusion-1param/window/surrogate-level-3.png,../figures/diffusion-1param/window/surrogate-level-4.png" data-caption="Piecewise-linear surrogate (Window) at L={i}" data-level-start="0">
+  <img class="frame" src="../figures/diffusion-1param/window/surrogate-level-1.png" alt="Per-level surrogate spectrum (Window)">
+  <input type="range" min="0" max="3" step="1" value="0">
+  <div class="caption"><span class="level">Piecewise-linear surrogate (Window) at L=0</span></div>
+</div>
+</section>
+<section id="a-posteriori-projection-matrices" class="level3">
+<h3 class="anchored" data-anchor-id="a-posteriori-projection-matrices">A-posteriori projection matrices</h3>
+<p>Each panel shows eigenvalues scattered in the <span class="math inline">(\mu, \lambda)</span> plane at the grid nodes active at that level. <strong>Solid coloured lines</strong> are the a-priori Hungarian-matched pairs — the algorithm’s candidate for “same branch, step left.” <strong>Black dashed lines</strong> are alternative matchings: off-diagonal entries <span class="math inline">|\Pi_{j\ell}|</span> that survive the pruning threshold but are not the primary match. Their presence at an edge is the direct REFINE signal — it says “I cannot confidently assign a unique partner to this band.”</p>
+<div class="level-scroll" data-frames="../figures/diffusion-1param/window/aposteriori-summary-1.png,../figures/diffusion-1param/window/aposteriori-summary-2.png,../figures/diffusion-1param/window/aposteriori-summary-3.png,../figures/diffusion-1param/window/aposteriori-summary-4.png" data-caption="A-posteriori summary (Window) at L={i}" data-level-start="0">
+  <img class="frame" src="../figures/diffusion-1param/window/aposteriori-summary-1.png" alt="A-posteriori summary (Window) at L=0">
+  <input type="range" min="0" max="3" step="1" value="0">
+  <div class="caption"><span class="level">A-posteriori summary (Window) at L=0</span></div>
+</div>
+<p>At <span class="math inline">L = 0</span>, dashed lines cluster near the avoided crossing (<span class="math inline">\mu \approx 0.8</span>), flagging those subintervals for refinement. By <span class="math inline">L = 3</span>, all dashed lines are gone — every subinterval is certified and the run terminates.</p>
+</section>
+<section id="the-avoided-crossing-at-0.7750.85" class="level3">
+<h3 class="anchored" data-anchor-id="the-avoided-crossing-at-0.7750.85">The avoided crossing at <span class="math inline">[0.775,\,0.85]</span></h3>
+<p>This is what the whole apparatus exists to catch. Between <span class="math inline">\mu = 0.775</span> and <span class="math inline">\mu = 0.85</span>, bands 7 and 8 (1-indexed) approach to a minimum gap of <span class="math inline">\approx
+13.7</span> and exchange character — an <strong>avoided</strong> crossing (the gap stays positive; the branches never truly meet). Two independent signals flag the edge:</p>
+<ol type="1">
+<li><strong>Projection mass.</strong> The <span class="math inline">2\times2</span> sub-block of <span class="math inline">\Pi</span> over bands 7–8 is no longer diagonal — each band at the left endpoint has substantial <span class="math inline">M</span>-overlap with <em>both</em> bands at the right endpoint, so neither matched pair is uniquely supported and the relative threshold keeps the off-pair entries.</li>
+<li><strong>Eigenfunction overlap.</strong> The eigenfunctions themselves rotate into one another across the edge — visible directly below.</li>
+</ol>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/diffusion-1param/window/crossing-eigenfunctions.png" class="img-fluid figure-img"></p>
+<figcaption><strong>Eigenfunctions at the crossing</strong> — bands 7 (top row) and 8 (bottom row) at <span class="math inline">\mu = 0.775</span> (left) and <span class="math inline">\mu = 0.85</span> (right), solved at exactly the overlap pair. The band-7 and band-8 shapes swap their dominant lobe structure between the two <span class="math inline">\mu</span>-values — the spatial signature of the avoided crossing.</figcaption>
+</figure>
+</div>
+</section>
+<section id="error-table" class="level3">
+<h3 class="anchored" data-anchor-id="error-table">Error table</h3>
+<p>The run, level by level — the reference <strong>Table 1D Error</strong>. This is the faithful reproduction: the reference <span class="math inline">3 \to 5 \to 7 \to 8</span> node progression, terminating at <span class="math inline">L = 3</span> with every subinterval certified.</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+<col style="width: 25%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Level</th>
+<th><span class="math inline">n_{\text{points}}</span></th>
+<th><span class="math inline">n_{\text{subintervals}}</span></th>
+<th><span class="math inline">n_{\text{uncertified}}</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td>3</td>
+<td>2</td>
+<td>2</td>
+</tr>
+<tr class="even">
+<td>1</td>
+<td>5</td>
+<td>4</td>
+<td>2</td>
+</tr>
+<tr class="odd">
+<td>2</td>
+<td>7</td>
+<td>4</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td>3</td>
+<td>8</td>
+<td>2</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p><code>n_uncertified</code> counts the subintervals flagged for refinement (REFINE) at each level; it falls to <span class="math inline">0</span> at <span class="math inline">L = 3</span>, where the run terminates with <code>ran_out=False</code>. There is no <code>n_wrong_match</code> column here: that FirstK diagnostic compares each node’s propagated band labels against a <em>fixed-band</em> truth sweep, and window mode’s ragged ranks have no fixed band index to compare against. The CSV behind this table is <code>window/error_table.csv</code>.</p>
+</section>
+<section id="verdict-map" class="level3">
+<h3 class="anchored" data-anchor-id="verdict-map">Verdict map</h3>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/diffusion-1param/window/verdict-map.png" class="img-fluid figure-img"></p>
+<figcaption><strong>Verdict map</strong> (Window) — each tested edge as a horizontal segment at <span class="math inline">y = \text{level}</span>, coloured by majority verdict. Band enter/exit events are recorded for introspection but, under the Algorithm 6 row-norm gate, do not by themselves drive refinement.</figcaption>
+</figure>
+</div>
+<p><strong>Summary.</strong> Window mode is the faithful reproduction of the reference §3.3.2 result: the reference 8-node Table 1D Error grid, computed on the reference window <span class="math inline">I_\lambda = [0, 270]</span>, surfacing the band-7/8 avoided crossing its ragged ranks are wide enough to see.</p>
+</section>
+</section>
+<section id="firstk-mode-the-fixed-band-approximation" class="level2">
+<h2 class="anchored" data-anchor-id="firstk-mode-the-fixed-band-approximation">FirstK mode — the fixed-band approximation</h2>
+<p>The same problem, with different spectral bookkeeping: keep a <strong>fixed</strong> <span class="math inline">n_{\text{eigs}} = 6</span> smallest bands at every node, regardless of where the spectrum sits. This is the rebuild’s generic mode — it needs no problem-specific window — but on this example it is an <em>approximation</em>, not the reference method, and it is honest to say where that bites.</p>
+<p>The tolerances are the reference’s <strong>stated</strong> 1-D values, which also coincide with the rebuild’s library defaults:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Quantity</th>
+<th>Value</th>
+<th>Role</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Eigenvalues per point</td>
+<td><span class="math inline">n_{\text{eigs}} = 6</span></td>
+<td>fixed band count (rebuild choice)</td>
+</tr>
+<tr class="even">
+<td>Pruning threshold</td>
+<td><span class="math inline">t_\pi = 0.21</span></td>
+<td>relative cutoff for off-pair projection mass (reference value)</td>
+</tr>
+<tr class="odd">
+<td>Eigenvalue cluster threshold</td>
+<td><span class="math inline">t_\lambda = 0.001</span></td>
+<td>groups near-degenerate bands (reference value)</td>
+</tr>
+</tbody>
+</table>
+<section id="reference-spectrum-1" class="level3">
+<h3 class="anchored" data-anchor-id="reference-spectrum-1">Reference spectrum</h3>
+<p>The same dense ground-truth sweep as above, here without window shading — FirstK carries six bands, so the figure shows the two low-band avoided crossings that fall inside them (3↔︎4 near <span class="math inline">\mu \approx 0.45</span> and <span class="math inline">\approx 0.86</span>, 5↔︎6 near <span class="math inline">\approx 0.72</span>), each drawn as a character-tracked X crossing.</p>
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/diffusion-1param/reference-spectrum.png" class="img-fluid figure-img"></p>
+<figcaption><strong>Reference spectrum</strong> — character-tracked eigenvalue branches from a dense sweep. FirstK with <span class="math inline">n_{\text{eigs}} = 6</span> carries the lowest six bands, so the 3↔︎4 and 5↔︎6 avoided crossings show as X crossings; the band-7/8 avoided crossing near <span class="math inline">\mu \approx 0.81</span> sits <em>above</em> its fixed cutoff, so FirstK sees only the boundary disturbance it casts onto band 6, never that crossing itself.</figcaption>
+</figure>
+</div>
+</section>
+<section id="adaptive-grid-evolution-1" class="level3">
+<h3 class="anchored" data-anchor-id="adaptive-grid-evolution-1">Adaptive grid evolution</h3>
+<p>Drag the slider to step through <span class="math inline">L = 0..1</span>. The grid grows <span class="math inline">3 \to 4</span> nodes and terminates at <span class="math inline">L = 1</span> — it refines <em>less</em> than the window run, for the reason explained in the comparison below.</p>
+<div class="level-scroll" data-frames="../figures/diffusion-1param/grid-level-1.png,../figures/diffusion-1param/grid-level-2.png" data-caption="Adaptive grid (FirstK) at L={i}" data-level-start="0">
+  <img class="frame" src="../figures/diffusion-1param/grid-level-1.png" alt="Adaptive grid per refinement level (FirstK)">
+  <input type="range" min="0" max="1" step="1" value="0">
+  <div class="caption"><span class="level">Adaptive grid (FirstK) at L=0</span></div>
+</div>
+</section>
+<section id="per-level-surrogate-1" class="level3">
+<h3 class="anchored" data-anchor-id="per-level-surrogate-1">Per-level surrogate</h3>
+<p>Solid coloured curves are the surrogate, reconstructed by the same fixed-slot reshuffle as the window case above; dashed grey is the dense reference. Unlike the window surrogate, FirstK’s is continuous (fixed rank everywhere, no window gaps) but stops at band 6.</p>
+<div class="level-scroll" data-frames="../figures/diffusion-1param/surrogate-level-1.png,../figures/diffusion-1param/surrogate-level-2.png" data-caption="Piecewise-linear surrogate (FirstK) at L={i}" data-level-start="0">
+  <img class="frame" src="../figures/diffusion-1param/surrogate-level-1.png" alt="Per-level surrogate spectrum (FirstK)">
+  <input type="range" min="0" max="1" step="1" value="0">
+  <div class="caption"><span class="level">Piecewise-linear surrogate (FirstK) at L=0</span></div>
+</div>
+</section>
+<section id="a-posteriori-projection-matrices-1" class="level3">
+<h3 class="anchored" data-anchor-id="a-posteriori-projection-matrices-1">A-posteriori projection matrices</h3>
+<p>Same layout as the Window section above: solid coloured lines are the primary Hungarian match; black dashed lines are alternative matches that survive pruning and trigger refinement.</p>
+<div class="level-scroll" data-frames="../figures/diffusion-1param/firstk/aposteriori-summary-1.png,../figures/diffusion-1param/firstk/aposteriori-summary-2.png" data-caption="A-posteriori summary (FirstK) at L={i}" data-level-start="0">
+  <img class="frame" src="../figures/diffusion-1param/firstk/aposteriori-summary-1.png" alt="A-posteriori summary (FirstK) at L=0">
+  <input type="range" min="0" max="1" step="1" value="0">
+  <div class="caption"><span class="level">A-posteriori summary (FirstK) at L=0</span></div>
+</div>
+<p>All matrices are square <span class="math inline">6 \times 6</span> throughout — fixed rank on both sides — in contrast with the window run’s ragged, sometimes rectangular <span class="math inline">\Pi</span>.</p>
+</section>
+<section id="error-table-1" class="level3">
+<h3 class="anchored" data-anchor-id="error-table-1">Error table</h3>
+<p>The run, level by level:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+<col style="width: 20%">
+</colgroup>
+<thead>
+<tr class="header">
+<th>Level</th>
+<th><span class="math inline">n_{\text{points}}</span></th>
+<th><span class="math inline">n_{\text{subintervals}}</span></th>
+<th><span class="math inline">n_{\text{wrong\_match}}</span></th>
+<th><span class="math inline">n_{\text{uncertified}}</span></th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>0</td>
+<td>3</td>
+<td>2</td>
+<td>2</td>
+<td>1</td>
+</tr>
+<tr class="even">
+<td>1</td>
+<td>4</td>
+<td>2</td>
+<td>2</td>
+<td>0</td>
+</tr>
+</tbody>
+</table>
+<p>The run terminates at <span class="math inline">L = 1</span> with all edges certified (<span class="math inline">n_{\text{uncertified}} = 0</span>) — on just <strong>4 nodes</strong>, coarser than the window run’s 8. It flags one of the two <span class="math inline">L=0</span> subintervals, bisects it once, and both halves then certify.</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Note
+</div>
+</div>
+<div class="callout-body-container callout-body">
+<p><strong>On <span class="math inline">n_{\text{wrong\_match}}</span>.</strong> This column compares the pipeline’s propagated band labels against an <em>independent</em> continuous truth sweep — a strict consistency check available only under FirstK’s fixed bands. It can be positive even when the grid topology is correct, because it counts any single band whose propagated identity differs from the continuous-tracking identity; see the <a href="../examples/knob-sweep.html">knob-sweep page</a>.</p>
+</div>
+</div>
+</section>
+<section id="what-firstk-is-blind-to" class="level3">
+<h3 class="anchored" data-anchor-id="what-firstk-is-blind-to">What FirstK is blind to</h3>
+<p>FirstK’s fixed cutoff at band 6 sits <em>right at</em> the band-7/8 near-degeneracy. It never computes bands 7 or 8, so it cannot see the avoided crossing the window run resolves directly — nor the tighter near-degeneracy among the highest bands near <span class="math inline">\mu \approx 0.94</span>. What reaches it is only the <strong>boundary disturbance</strong> that the uncomputed band 7 casts onto its last requested band 6. Under the reference-faithful <em>additive</em> pruning rule, that disturbance does not lift any off-pair projection entry above the matched pair’s by more than <span class="math inline">t_\pi = 0.21</span>, so the ambiguous last band is <strong>certified rather than refined</strong>: FirstK flags a single subinterval, bisects once, and terminates at <span class="math inline">L = 1</span> on 4 nodes — <em>coarser</em> than the window run’s 8. Lacking the bands that carry the crossing, and with the additive prune declining to manufacture refinement from the boundary ambiguity, the fixed-band approximation simply <strong>under-resolves</strong> the region the window run refines around. This is the honest cost of approximating a ragged-window problem with a fixed band count.</p>
+</section>
+</section>
+<section id="comparison-firstk-vs-window" class="level2">
+<h2 class="anchored" data-anchor-id="comparison-firstk-vs-window">Comparison: FirstK vs Window</h2>
+<p>The two modes solve the <em>same</em> PDE with different spectral bookkeeping, and they answer <strong>different questions</strong>:</p>
+<ul>
+<li><strong>Window</strong> asks “track every band inside <span class="math inline">[0, 270]</span>” — this benchmark’s actual question, ragged ranks and all.</li>
+<li><strong>FirstK</strong> asks “track the six smallest bands everywhere” — a uniform approximation that needs no window but cannot reach the upper-band physics.</li>
+</ul>
+<p>They <strong>terminate at different levels and on different grids</strong>:</p>
+<table class="caption-top table">
+<colgroup>
+<col style="width: 33%">
+<col style="width: 33%">
+<col style="width: 33%">
+</colgroup>
+<thead>
+<tr class="header">
+<th></th>
+<th>Window</th>
+<th>FirstK</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Bands per node</td>
+<td>ragged (4–9)</td>
+<td>fixed (6)</td>
+</tr>
+<tr class="even">
+<td>Spectral region</td>
+<td><span class="math inline">I_\lambda = [0, 270]</span></td>
+<td>6 smallest bands</td>
+</tr>
+<tr class="odd">
+<td>Tolerances</td>
+<td><span class="math inline">t_\pi = 0.21,\ t_\lambda = 0.085</span></td>
+<td><span class="math inline">t_\pi = 0.21,\ t_\lambda = 0.001</span></td>
+</tr>
+<tr class="even">
+<td>Terminal level</td>
+<td>3</td>
+<td>1</td>
+</tr>
+<tr class="odd">
+<td>Grid nodes</td>
+<td><strong>8</strong></td>
+<td><strong>4</strong></td>
+</tr>
+<tr class="even">
+<td>Reproduces Table 1D Error</td>
+<td><strong>yes</strong></td>
+<td>no</td>
+</tr>
+</tbody>
+</table>
+<p>The window run reaches <strong>8 nodes</strong> and reproduces the reference 1-D grid. FirstK, with the <em>same</em> <span class="math inline">t_\pi = 0.21</span> and the reference-faithful additive pruning rule, terminates two levels earlier on just <strong>4 nodes</strong>: its fixed 6-band cutoff sits at the band-7/8 near-degeneracy, but the additive prune certifies the resulting boundary ambiguity on band 6 rather than chasing it — so FirstK <em>under</em>-resolves exactly the region the window run refines around.</p>
+<p>The two modes do <strong>not</strong> land on the same grid. Earlier versions of this page showed a <em>different</em> FirstK grid — first a manufactured 8-node match (a tuned <span class="math inline">t_\pi = 0.35</span> reverse-engineered to hit the window’s grid, a value found nowhere in the reference), then a 13-node over-refinement — because the pruning rule and preset tolerances had not yet been made reference-faithful. With the faithful additive prune and the stated <span class="math inline">t_\pi = 0.21</span>, FirstK settles at 4 nodes. The window-mode run is the faithful reproduction; FirstK here is a fixed-band approximation that under-resolves the crossing it cannot see.</p>
+<div>
+
+</div>
+<div class="quarto-layout-panel" data-layout-ncol="2">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/diffusion-1param/window/adaptive-grid.png" class="img-fluid figure-img"></p>
+<figcaption><strong>Adaptive grid</strong> (Window) — 8 nodes, the faithful grid.</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/diffusion-1param/adaptive-grid.png" class="img-fluid figure-img"></p>
+<figcaption><strong>Adaptive grid</strong> (FirstK) — 4 nodes, the fixed-band approximation terminating early.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<p>The surrogate’s accuracy as a reduced-order model — versus a dense solve at arbitrary <span class="math inline">\mu</span> — is measured for both modes on the <a href="../examples/rom-vs-dense.html">ROM vs dense page</a>.</p>
+</section>
+<section id="side-by-side-with-the-original-matlab" class="level2">
+<h2 class="anchored" data-anchor-id="side-by-side-with-the-original-matlab">Side-by-side with the original MATLAB</h2>
+<p>The panels below place the Python rebuild next to a <strong>freshly generated figure from the dissertation’s own MATLAB code</strong> (the frozen <code>CodeSeptember</code> dump), so the two implementations can be eyeballed directly. The MATLAB figures are produced headlessly by <code>scripts/matlab_figures.py</code> under MATLAB R2026a and committed as artifacts (CI has no MATLAB, so they are not regenerated on every build).</p>
+<div class="callout callout-style-default callout-note callout-titled">
+<div class="callout-header d-flex align-content-center" data-bs-toggle="collapse" data-bs-target=".callout-2-contents" aria-controls="callout-2" aria-expanded="false" aria-label="Toggle callout">
+<div class="callout-icon-container">
+<i class="callout-icon"></i>
+</div>
+<div class="callout-title-container flex-fill">
+Provenance (how the MATLAB figures were made)
+</div>
+<div class="callout-btn-toggle d-inline-block border-0 py-1 ps-1 pe-0 float-end"><i class="callout-toggle"></i></div>
+</div>
+<div id="callout-2" class="callout-2-contents callout-collapse collapse">
+<div class="callout-body-container callout-body">
+<ul>
+<li><strong>Source</strong>: <code>GreedyAlgorithm/CodeSeptember/Main.m</code>, <code>choice1='1'</code>, <code>InitialLevel=2</code>, run through <code>scripts/matlab_figures.py</code> (interactive prompts, <code>VideoWriter</code>, and Windows-only paths are neutralised; the frozen dump is never edited — the grid-helpers <code>lev2knots_doubling</code>/<code>tensor_grid</code> are addpath’d from the <code>Clean</code> dump, which only fills gaps CodeSeptember lacks).</li>
+<li><strong>1-parameter coefficient (this page)</strong>: the frozen diffusion solver hard-wires the §3.3.3 <strong>2-parameter</strong> coefficient <code>[µ₁⁻²; 0.8·µ₂⁻¹; µ₂⁻²]</code> and cannot express the §3.3.2 eq-3.10 coefficient. The MATLAB figures here therefore use a <strong>documented, unfrozen adaptation</strong> — <code>matlab/matched_eig1D_3_3_2.m</code>, an editable copy of the frozen <code>matched_eig2Dexample.m</code> with <strong>only</strong> the coefficient replaced by <code>[µ⁻²; 1; 0.7⁻²]</code> (eq-3.10 exactly). Everything else (matching, a-posteriori gate) is byte-for-byte the frozen original.</li>
+<li><strong>Tolerances</strong>: the frozen <code>choice1='1'</code> values <code>t_lambda=0.085</code>, <code>t_pi=0.57</code>, window <code>I_λ=[0,200]</code> — <strong>not</strong> the rebuild’s window preset, so the two grids are expected to differ in node count.</li>
+</ul>
+</div>
+</div>
+</div>
+<div>
+
+</div>
+<div class="quarto-layout-panel" data-layout-ncol="2">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/diffusion-1param/window/reference-spectrum.png" class="img-fluid figure-img"></p>
+<figcaption><strong>Rebuild</strong> — reference spectrum (Window mode), bands descending into the kept window as <span class="math inline">\mu</span> grows.</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/diffusion-1param/matlab_matched-eigenvalue-curves.png" class="img-fluid figure-img"></p>
+<figcaption><strong>MATLAB</strong> — matched eigenvalue curves vs <span class="math inline">\mu</span> from the original code (eq-3.10 coefficient). Same qualitative structure: branches descend as <span class="math inline">\mu</span> grows, higher bands enter the window near the band-7/8 avoided crossing at <span class="math inline">\mu\approx0.8</span>.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<div>
+
+</div>
+<div class="quarto-layout-panel" data-layout-ncol="2">
+<div class="quarto-layout-row">
+<div class="quarto-layout-cell" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/diffusion-1param/window/adaptive-grid.png" class="img-fluid figure-img"></p>
+<figcaption><strong>Rebuild</strong> — adaptive grid (Window), 8 nodes, refinement concentrated around the avoided crossing.</figcaption>
+</figure>
+</div>
+</div>
+<div class="quarto-layout-cell" style="flex-basis: 50.0%;justify-content: flex-start;">
+<div class="quarto-figure quarto-figure-center">
+<figure class="figure">
+<p><img src="../figures/diffusion-1param/matlab_adaptive-grid.png" class="img-fluid figure-img"></p>
+<figcaption><strong>MATLAB</strong> — adaptive grid from the original code, 6 nodes at the frozen <code>choice1='1'</code> tolerances (<span class="math inline">t_\lambda=0.085</span>, looser than the window preset). Refinement concentrates in the same <span class="math inline">[0.7, 0.85]</span> crossing region.</figcaption>
+</figure>
+</div>
+</div>
+</div>
+</div>
+<p>The two adaptive grids are <strong>not</strong> expected to be node-for-node identical — they run at different tolerances, and the MATLAB grid uses the node-centric <code>forward_points</code> refinement the rebuild only reproduces under its <code>forward_points</code> strategy. What the pairing shows is that both implementations place their refinement in the same crossing region and recover the same descending band structure. Rebuild-only figures on this page (per-level sliders, a-posteriori summaries, verdict map) have <strong>no MATLAB counterpart</strong> — the original code never draws them.</p>
+
+
+<!-- -->
+
+</section>
+
+</main> <!-- /main -->
+<script id="quarto-html-after-body" type="application/javascript">
+window.document.addEventListener("DOMContentLoaded", function (event) {
+  const toggleBodyColorMode = (bsSheetEl) => {
+    const mode = bsSheetEl.getAttribute("data-mode");
+    const bodyEl = window.document.querySelector("body");
+    if (mode === "dark") {
+      bodyEl.classList.add("quarto-dark");
+      bodyEl.classList.remove("quarto-light");
+    } else {
+      bodyEl.classList.add("quarto-light");
+      bodyEl.classList.remove("quarto-dark");
+    }
+  }
+  const toggleBodyColorPrimary = () => {
+    const bsSheetEl = window.document.querySelector("link#quarto-bootstrap");
+    if (bsSheetEl) {
+      toggleBodyColorMode(bsSheetEl);
+    }
+  }
+  toggleBodyColorPrimary();  
+  const icon = "";
+  const anchorJS = new window.AnchorJS();
+  anchorJS.options = {
+    placement: 'right',
+    icon: icon
+  };
+  anchorJS.add('.anchored');
+  const isCodeAnnotation = (el) => {
+    for (const clz of el.classList) {
+      if (clz.startsWith('code-annotation-')) {                     
+        return true;
+      }
+    }
+    return false;
+  }
+  const onCopySuccess = function(e) {
+    // button target
+    const button = e.trigger;
+    // don't keep focus
+    button.blur();
+    // flash "checked"
+    button.classList.add('code-copy-button-checked');
+    var currentTitle = button.getAttribute("title");
+    button.setAttribute("title", "Copied!");
+    let tooltip;
+    if (window.bootstrap) {
+      button.setAttribute("data-bs-toggle", "tooltip");
+      button.setAttribute("data-bs-placement", "left");
+      button.setAttribute("data-bs-title", "Copied!");
+      tooltip = new bootstrap.Tooltip(button, 
+        { trigger: "manual", 
+          customClass: "code-copy-button-tooltip",
+          offset: [0, -8]});
+      tooltip.show();    
+    }
+    setTimeout(function() {
+      if (tooltip) {
+        tooltip.hide();
+        button.removeAttribute("data-bs-title");
+        button.removeAttribute("data-bs-toggle");
+        button.removeAttribute("data-bs-placement");
+      }
+      button.setAttribute("title", currentTitle);
+      button.classList.remove('code-copy-button-checked');
+    }, 1000);
+    // clear code selection
+    e.clearSelection();
+  }
+  const getTextToCopy = function(trigger) {
+      const codeEl = trigger.previousElementSibling.cloneNode(true);
+      for (const childEl of codeEl.children) {
+        if (isCodeAnnotation(childEl)) {
+          childEl.remove();
+        }
+      }
+      return codeEl.innerText;
+  }
+  const clipboard = new window.ClipboardJS('.code-copy-button:not([data-in-quarto-modal])', {
+    text: getTextToCopy
+  });
+  clipboard.on('success', onCopySuccess);
+  if (window.document.getElementById('quarto-embedded-source-code-modal')) {
+    // For code content inside modals, clipBoardJS needs to be initialized with a container option
+    // TODO: Check when it could be a function (https://github.com/zenorocha/clipboard.js/issues/860)
+    const clipboardModal = new window.ClipboardJS('.code-copy-button[data-in-quarto-modal]', {
+      text: getTextToCopy,
+      container: window.document.getElementById('quarto-embedded-source-code-modal')
+    });
+    clipboardModal.on('success', onCopySuccess);
+  }
+  const viewSource = window.document.getElementById('quarto-view-source') ||
+                     window.document.getElementById('quarto-code-tools-source');
+  if (viewSource) {
+    const sourceUrl = viewSource.getAttribute("data-quarto-source-url");
+    viewSource.addEventListener("click", function(e) {
+      if (sourceUrl) {
+        // rstudio viewer pane
+        if (/\bcapabilities=\b/.test(window.location)) {
+          window.open(sourceUrl);
+        } else {
+          window.location.href = sourceUrl;
+        }
+      } else {
+        const modal = new bootstrap.Modal(document.getElementById('quarto-embedded-source-code-modal'));
+        modal.show();
+      }
+      return false;
+    });
+  }
+  function toggleCodeHandler(show) {
+    return function(e) {
+      const detailsSrc = window.document.querySelectorAll(".cell > details > .sourceCode");
+      for (let i=0; i<detailsSrc.length; i++) {
+        const details = detailsSrc[i].parentElement;
+        if (show) {
+          details.open = true;
+        } else {
+          details.removeAttribute("open");
+        }
+      }
+      const cellCodeDivs = window.document.querySelectorAll(".cell > .sourceCode");
+      const fromCls = show ? "hidden" : "unhidden";
+      const toCls = show ? "unhidden" : "hidden";
+      for (let i=0; i<cellCodeDivs.length; i++) {
+        const codeDiv = cellCodeDivs[i];
+        if (codeDiv.classList.contains(fromCls)) {
+          codeDiv.classList.remove(fromCls);
+          codeDiv.classList.add(toCls);
+        } 
+      }
+      return false;
+    }
+  }
+  const hideAllCode = window.document.getElementById("quarto-hide-all-code");
+  if (hideAllCode) {
+    hideAllCode.addEventListener("click", toggleCodeHandler(false));
+  }
+  const showAllCode = window.document.getElementById("quarto-show-all-code");
+  if (showAllCode) {
+    showAllCode.addEventListener("click", toggleCodeHandler(true));
+  }
+    var localhostRegex = new RegExp(/^(?:http|https):\/\/localhost\:?[0-9]*\//);
+    var mailtoRegex = new RegExp(/^mailto:/);
+      var filterRegex = new RegExp('/' + window.location.host + '/');
+    var isInternal = (href) => {
+        return filterRegex.test(href) || localhostRegex.test(href) || mailtoRegex.test(href);
+    }
+    // Inspect non-navigation links and adorn them if external
+ 	var links = window.document.querySelectorAll('a[href]:not(.nav-link):not(.navbar-brand):not(.toc-action):not(.sidebar-link):not(.sidebar-item-toggle):not(.pagination-link):not(.no-external):not([aria-hidden]):not(.dropdown-item):not(.quarto-navigation-tool):not(.about-link)');
+    for (var i=0; i<links.length; i++) {
+      const link = links[i];
+      if (!isInternal(link.href)) {
+        // undo the damage that might have been done by quarto-nav.js in the case of
+        // links that we want to consider external
+        if (link.dataset.originalHref !== undefined) {
+          link.href = link.dataset.originalHref;
+        }
+      }
+    }
+  function tippyHover(el, contentFn, onTriggerFn, onUntriggerFn) {
+    const config = {
+      allowHTML: true,
+      maxWidth: 500,
+      delay: 100,
+      arrow: false,
+      appendTo: function(el) {
+          return el.parentElement;
+      },
+      interactive: true,
+      interactiveBorder: 10,
+      theme: 'quarto',
+      placement: 'bottom-start',
+    };
+    if (contentFn) {
+      config.content = contentFn;
+    }
+    if (onTriggerFn) {
+      config.onTrigger = onTriggerFn;
+    }
+    if (onUntriggerFn) {
+      config.onUntrigger = onUntriggerFn;
+    }
+    window.tippy(el, config); 
+  }
+  const noterefs = window.document.querySelectorAll('a[role="doc-noteref"]');
+  for (var i=0; i<noterefs.length; i++) {
+    const ref = noterefs[i];
+    tippyHover(ref, function() {
+      // use id or data attribute instead here
+      let href = ref.getAttribute('data-footnote-href') || ref.getAttribute('href');
+      try { href = new URL(href).hash; } catch {}
+      const id = href.replace(/^#\/?/, "");
+      const note = window.document.getElementById(id);
+      if (note) {
+        return note.innerHTML;
+      } else {
+        return "";
+      }
+    });
+  }
+  const xrefs = window.document.querySelectorAll('a.quarto-xref');
+  const processXRef = (id, note) => {
+    // Strip column container classes
+    const stripColumnClz = (el) => {
+      el.classList.remove("page-full", "page-columns");
+      if (el.children) {
+        for (const child of el.children) {
+          stripColumnClz(child);
+        }
+      }
+    }
+    stripColumnClz(note)
+    if (id === null || id.startsWith('sec-')) {
+      // Special case sections, only their first couple elements
+      const container = document.createElement("div");
+      if (note.children && note.children.length > 2) {
+        container.appendChild(note.children[0].cloneNode(true));
+        for (let i = 1; i < note.children.length; i++) {
+          const child = note.children[i];
+          if (child.tagName === "P" && child.innerText === "") {
+            continue;
+          } else {
+            container.appendChild(child.cloneNode(true));
+            break;
+          }
+        }
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(container);
+        }
+        return container.innerHTML
+      } else {
+        if (window.Quarto?.typesetMath) {
+          window.Quarto.typesetMath(note);
+        }
+        return note.innerHTML;
+      }
+    } else {
+      // Remove any anchor links if they are present
+      const anchorLink = note.querySelector('a.anchorjs-link');
+      if (anchorLink) {
+        anchorLink.remove();
+      }
+      if (window.Quarto?.typesetMath) {
+        window.Quarto.typesetMath(note);
+      }
+      // TODO in 1.5, we should make sure this works without a callout special case
+      if (note.classList.contains("callout")) {
+        return note.outerHTML;
+      } else {
+        return note.innerHTML;
+      }
+    }
+  }
+  for (var i=0; i<xrefs.length; i++) {
+    const xref = xrefs[i];
+    tippyHover(xref, undefined, function(instance) {
+      instance.disable();
+      let url = xref.getAttribute('href');
+      let hash = undefined; 
+      if (url.startsWith('#')) {
+        hash = url;
+      } else {
+        try { hash = new URL(url).hash; } catch {}
+      }
+      if (hash) {
+        const id = hash.replace(/^#\/?/, "");
+        const note = window.document.getElementById(id);
+        if (note !== null) {
+          try {
+            const html = processXRef(id, note.cloneNode(true));
+            instance.setContent(html);
+          } finally {
+            instance.enable();
+            instance.show();
+          }
+        } else {
+          // See if we can fetch this
+          fetch(url.split('#')[0])
+          .then(res => res.text())
+          .then(html => {
+            const parser = new DOMParser();
+            const htmlDoc = parser.parseFromString(html, "text/html");
+            const note = htmlDoc.getElementById(id);
+            if (note !== null) {
+              const html = processXRef(id, note);
+              instance.setContent(html);
+            } 
+          }).finally(() => {
+            instance.enable();
+            instance.show();
+          });
+        }
+      } else {
+        // See if we can fetch a full url (with no hash to target)
+        // This is a special case and we should probably do some content thinning / targeting
+        fetch(url)
+        .then(res => res.text())
+        .then(html => {
+          const parser = new DOMParser();
+          const htmlDoc = parser.parseFromString(html, "text/html");
+          const note = htmlDoc.querySelector('main.content');
+          if (note !== null) {
+            // This should only happen for chapter cross references
+            // (since there is no id in the URL)
+            // remove the first header
+            if (note.children.length > 0 && note.children[0].tagName === "HEADER") {
+              note.children[0].remove();
+            }
+            const html = processXRef(null, note);
+            instance.setContent(html);
+          } 
+        }).finally(() => {
+          instance.enable();
+          instance.show();
+        });
+      }
+    }, function(instance) {
+    });
+  }
+      let selectedAnnoteEl;
+      const selectorForAnnotation = ( cell, annotation) => {
+        let cellAttr = 'data-code-cell="' + cell + '"';
+        let lineAttr = 'data-code-annotation="' +  annotation + '"';
+        const selector = 'span[' + cellAttr + '][' + lineAttr + ']';
+        return selector;
+      }
+      const selectCodeLines = (annoteEl) => {
+        const doc = window.document;
+        const targetCell = annoteEl.getAttribute("data-target-cell");
+        const targetAnnotation = annoteEl.getAttribute("data-target-annotation");
+        const annoteSpan = window.document.querySelector(selectorForAnnotation(targetCell, targetAnnotation));
+        const lines = annoteSpan.getAttribute("data-code-lines").split(",");
+        const lineIds = lines.map((line) => {
+          return targetCell + "-" + line;
+        })
+        let top = null;
+        let height = null;
+        let parent = null;
+        if (lineIds.length > 0) {
+            //compute the position of the single el (top and bottom and make a div)
+            const el = window.document.getElementById(lineIds[0]);
+            top = el.offsetTop;
+            height = el.offsetHeight;
+            parent = el.parentElement.parentElement;
+          if (lineIds.length > 1) {
+            const lastEl = window.document.getElementById(lineIds[lineIds.length - 1]);
+            const bottom = lastEl.offsetTop + lastEl.offsetHeight;
+            height = bottom - top;
+          }
+          if (top !== null && height !== null && parent !== null) {
+            // cook up a div (if necessary) and position it 
+            let div = window.document.getElementById("code-annotation-line-highlight");
+            if (div === null) {
+              div = window.document.createElement("div");
+              div.setAttribute("id", "code-annotation-line-highlight");
+              div.style.position = 'absolute';
+              parent.appendChild(div);
+            }
+            div.style.top = top - 2 + "px";
+            div.style.height = height + 4 + "px";
+            div.style.left = 0;
+            let gutterDiv = window.document.getElementById("code-annotation-line-highlight-gutter");
+            if (gutterDiv === null) {
+              gutterDiv = window.document.createElement("div");
+              gutterDiv.setAttribute("id", "code-annotation-line-highlight-gutter");
+              gutterDiv.style.position = 'absolute';
+              const codeCell = window.document.getElementById(targetCell);
+              const gutter = codeCell.querySelector('.code-annotation-gutter');
+              gutter.appendChild(gutterDiv);
+            }
+            gutterDiv.style.top = top - 2 + "px";
+            gutterDiv.style.height = height + 4 + "px";
+          }
+          selectedAnnoteEl = annoteEl;
+        }
+      };
+      const unselectCodeLines = () => {
+        const elementsIds = ["code-annotation-line-highlight", "code-annotation-line-highlight-gutter"];
+        elementsIds.forEach((elId) => {
+          const div = window.document.getElementById(elId);
+          if (div) {
+            div.remove();
+          }
+        });
+        selectedAnnoteEl = undefined;
+      };
+        // Handle positioning of the toggle
+    window.addEventListener(
+      "resize",
+      throttle(() => {
+        elRect = undefined;
+        if (selectedAnnoteEl) {
+          selectCodeLines(selectedAnnoteEl);
+        }
+      }, 10)
+    );
+    function throttle(fn, ms) {
+    let throttle = false;
+    let timer;
+      return (...args) => {
+        if(!throttle) { // first call gets through
+            fn.apply(this, args);
+            throttle = true;
+        } else { // all the others get throttled
+            if(timer) clearTimeout(timer); // cancel #2
+            timer = setTimeout(() => {
+              fn.apply(this, args);
+              timer = throttle = false;
+            }, ms);
+        }
+      };
+    }
+      // Attach click handler to the DT
+      const annoteDls = window.document.querySelectorAll('dt[data-target-cell]');
+      for (const annoteDlNode of annoteDls) {
+        annoteDlNode.addEventListener('click', (event) => {
+          const clickedEl = event.target;
+          if (clickedEl !== selectedAnnoteEl) {
+            unselectCodeLines();
+            const activeEl = window.document.querySelector('dt[data-target-cell].code-annotation-active');
+            if (activeEl) {
+              activeEl.classList.remove('code-annotation-active');
+            }
+            selectCodeLines(clickedEl);
+            clickedEl.classList.add('code-annotation-active');
+          } else {
+            // Unselect the line
+            unselectCodeLines();
+            clickedEl.classList.remove('code-annotation-active');
+          }
+        });
+      }
+  const findCites = (el) => {
+    const parentEl = el.parentElement;
+    if (parentEl) {
+      const cites = parentEl.dataset.cites;
+      if (cites) {
+        return {
+          el,
+          cites: cites.split(' ')
+        };
+      } else {
+        return findCites(el.parentElement)
+      }
+    } else {
+      return undefined;
+    }
+  };
+  var bibliorefs = window.document.querySelectorAll('a[role="doc-biblioref"]');
+  for (var i=0; i<bibliorefs.length; i++) {
+    const ref = bibliorefs[i];
+    const citeInfo = findCites(ref);
+    if (citeInfo) {
+      tippyHover(citeInfo.el, function() {
+        var popup = window.document.createElement('div');
+        citeInfo.cites.forEach(function(cite) {
+          var citeDiv = window.document.createElement('div');
+          citeDiv.classList.add('hanging-indent');
+          citeDiv.classList.add('csl-entry');
+          var biblioDiv = window.document.getElementById('ref-' + cite);
+          if (biblioDiv) {
+            citeDiv.innerHTML = biblioDiv.innerHTML;
+          }
+          popup.appendChild(citeDiv);
+        });
+        return popup.innerHTML;
+      });
+    }
+  }
+});
+</script><div class="modal fade" id="quarto-embedded-source-code-modal" tabindex="-1" aria-labelledby="quarto-embedded-source-code-modal-label" aria-hidden="true"><div class="modal-dialog modal-dialog-scrollable"><div class="modal-content"><div class="modal-header"><h5 class="modal-title" id="quarto-embedded-source-code-modal-label">Source Code</h5><button class="btn-close" data-bs-dismiss="modal"></button></div><div class="modal-body"><div class="">
+<div class="sourceCode" id="cb1" data-shortcodes="false"><pre class="sourceCode markdown code-with-copy"><code class="sourceCode markdown"><span id="cb1-1"><a href="#cb1-1" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb1-2"><a href="#cb1-2" aria-hidden="true" tabindex="-1"></a><span class="an">title:</span><span class="co"> "A 2-D diffusion eigenproblem with a one-parameter coefficient"</span></span>
+<span id="cb1-3"><a href="#cb1-3" aria-hidden="true" tabindex="-1"></a><span class="co">---</span></span>
+<span id="cb1-4"><a href="#cb1-4" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-5"><a href="#cb1-5" aria-hidden="true" tabindex="-1"></a>This is the reference example for the whole method: a scalar diffusion</span>
+<span id="cb1-6"><a href="#cb1-6" aria-hidden="true" tabindex="-1"></a>eigenproblem on the unit square whose coefficient depends on a single scalar</span>
+<span id="cb1-7"><a href="#cb1-7" aria-hidden="true" tabindex="-1"></a>parameter $\mu$. The spatial problem is **two-dimensional**; the parameter it is</span>
+<span id="cb1-8"><a href="#cb1-8" aria-hidden="true" tabindex="-1"></a>swept over is **one-dimensional**, $\mu \in <span class="co">[</span><span class="ot">0.4, 1</span><span class="co">]</span>$. Those two dimensions are</span>
+<span id="cb1-9"><a href="#cb1-9" aria-hidden="true" tabindex="-1"></a>unrelated and worth keeping apart — everything below is "2-D in space, 1-D in</span>
+<span id="cb1-10"><a href="#cb1-10" aria-hidden="true" tabindex="-1"></a>parameter".</span>
+<span id="cb1-11"><a href="#cb1-11" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-12"><a href="#cb1-12" aria-hidden="true" tabindex="-1"></a>The page is built in the order the method itself works. First the shared</span>
+<span id="cb1-13"><a href="#cb1-13" aria-hidden="true" tabindex="-1"></a>groundwork: the model, the matching operation on a single subinterval, and the</span>
+<span id="cb1-14"><a href="#cb1-14" aria-hidden="true" tabindex="-1"></a>discretisation. Then each of the two **operating modes** gets a full,</span>
+<span id="cb1-15"><a href="#cb1-15" aria-hidden="true" tabindex="-1"></a>self-contained treatment, run to its own convergence: **Window mode** — the</span>
+<span id="cb1-16"><a href="#cb1-16" aria-hidden="true" tabindex="-1"></a>faithful reproduction of the published 1-D grid — followed by **FirstK mode** —</span>
+<span id="cb1-17"><a href="#cb1-17" aria-hidden="true" tabindex="-1"></a>a fixed-band approximation. The page closes with an honest side-by-side</span>
+<span id="cb1-18"><a href="#cb1-18" aria-hidden="true" tabindex="-1"></a>comparison of the two.</span>
+<span id="cb1-19"><a href="#cb1-19" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-20"><a href="#cb1-20" aria-hidden="true" tabindex="-1"></a>**Related pages**</span>
+<span id="cb1-21"><a href="#cb1-21" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-22"><a href="#cb1-22" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">ROM vs dense sweep</span><span class="co">](rom-vs-dense.qmd)</span> — how accurately the converged surrogate</span>
+<span id="cb1-23"><a href="#cb1-23" aria-hidden="true" tabindex="-1"></a>  reproduces a dense solve at arbitrary $\mu$.</span>
+<span id="cb1-24"><a href="#cb1-24" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">Tolerance perturbation</span><span class="co">](tolerance-perturbation.qmd)</span> — evidence that the</span>
+<span id="cb1-25"><a href="#cb1-25" aria-hidden="true" tabindex="-1"></a>  tolerance values used here are load-bearing.</span>
+<span id="cb1-26"><a href="#cb1-26" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">Knob sweep</span><span class="co">](knob-sweep.qmd)</span> — how the grid responds as the verdict thresholds move.</span>
+<span id="cb1-27"><a href="#cb1-27" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span><span class="co">[</span><span class="ot">Two-parameter sweep</span><span class="co">](diffusion-3-3-3.qmd)</span> — the same PDE over a 2-D parameter box.</span>
+<span id="cb1-28"><a href="#cb1-28" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-29"><a href="#cb1-29" aria-hidden="true" tabindex="-1"></a><span class="fu">## Why this example</span></span>
+<span id="cb1-30"><a href="#cb1-30" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-31"><a href="#cb1-31" aria-hidden="true" tabindex="-1"></a>It is the smallest problem that shows the full phenomenon the method exists to</span>
+<span id="cb1-32"><a href="#cb1-32" aria-hidden="true" tabindex="-1"></a>handle: eigenvalue **branches that approach and exchange character** as the</span>
+<span id="cb1-33"><a href="#cb1-33" aria-hidden="true" tabindex="-1"></a>parameter varies, and an adaptive grid that must **find those events on its own**</span>
+<span id="cb1-34"><a href="#cb1-34" aria-hidden="true" tabindex="-1"></a>and refine around them. It is small enough to solve densely for ground truth, so</span>
+<span id="cb1-35"><a href="#cb1-35" aria-hidden="true" tabindex="-1"></a>every claim the adaptive loop makes can be checked against a known answer — which</span>
+<span id="cb1-36"><a href="#cb1-36" aria-hidden="true" tabindex="-1"></a>is why the accuracy and robustness studies (<span class="co">[</span><span class="ot">ROM vs dense</span><span class="co">](rom-vs-dense.qmd)</span>,</span>
+<span id="cb1-37"><a href="#cb1-37" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">tolerance perturbation</span><span class="co">](tolerance-perturbation.qmd)</span>) use it as their reference.</span>
+<span id="cb1-38"><a href="#cb1-38" aria-hidden="true" tabindex="-1"></a>If the method works here, the machinery is sound; larger problems (a 2-D</span>
+<span id="cb1-39"><a href="#cb1-39" aria-hidden="true" tabindex="-1"></a>parameter box, 6-D elasticity) add scale, not new ideas.</span>
+<span id="cb1-40"><a href="#cb1-40" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-41"><a href="#cb1-41" aria-hidden="true" tabindex="-1"></a><span class="fu">## The model</span></span>
+<span id="cb1-42"><a href="#cb1-42" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-43"><a href="#cb1-43" aria-hidden="true" tabindex="-1"></a>Find $(\lambda, u) \in \mathbb{R} \times H_0^1(\Omega)$ on the unit square</span>
+<span id="cb1-44"><a href="#cb1-44" aria-hidden="true" tabindex="-1"></a>$\Omega = <span class="co">[</span><span class="ot">0,1</span><span class="co">]</span>^2$ such that</span>
+<span id="cb1-45"><a href="#cb1-45" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-46"><a href="#cb1-46" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-47"><a href="#cb1-47" aria-hidden="true" tabindex="-1"></a>-\nabla \cdot \bigl(c(\mu)\,\nabla u\bigr) \;=\; \lambda\,u</span>
+<span id="cb1-48"><a href="#cb1-48" aria-hidden="true" tabindex="-1"></a>\quad \text{in } \Omega,</span>
+<span id="cb1-49"><a href="#cb1-49" aria-hidden="true" tabindex="-1"></a>\qquad</span>
+<span id="cb1-50"><a href="#cb1-50" aria-hidden="true" tabindex="-1"></a>u = 0 \text{ on } \partial\Omega .</span>
+<span id="cb1-51"><a href="#cb1-51" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-52"><a href="#cb1-52" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-53"><a href="#cb1-53" aria-hidden="true" tabindex="-1"></a>In weak form this is the generalised eigenproblem: find</span>
+<span id="cb1-54"><a href="#cb1-54" aria-hidden="true" tabindex="-1"></a>$(\lambda, u) \in \mathbb{R} \times H_0^1(\Omega)$ with</span>
+<span id="cb1-55"><a href="#cb1-55" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-56"><a href="#cb1-56" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-57"><a href="#cb1-57" aria-hidden="true" tabindex="-1"></a>a(u, v;\,\mu) \;=\; \lambda\, b(u, v) \qquad \forall\, v \in H_0^1(\Omega),</span>
+<span id="cb1-58"><a href="#cb1-58" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-59"><a href="#cb1-59" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-60"><a href="#cb1-60" aria-hidden="true" tabindex="-1"></a>a(u, v;\,\mu) = \int_\Omega \bigl(c(\mu)\,\nabla u\bigr)\cdot \nabla v \, \mathrm{d}x,</span>
+<span id="cb1-61"><a href="#cb1-61" aria-hidden="true" tabindex="-1"></a>\qquad</span>
+<span id="cb1-62"><a href="#cb1-62" aria-hidden="true" tabindex="-1"></a>b(u, v) = \int_\Omega u\,v \, \mathrm{d}x .</span>
+<span id="cb1-63"><a href="#cb1-63" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-64"><a href="#cb1-64" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-65"><a href="#cb1-65" aria-hidden="true" tabindex="-1"></a>The coefficient is a **global, space-constant** $2\times 2$ matrix:</span>
+<span id="cb1-66"><a href="#cb1-66" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-67"><a href="#cb1-67" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-68"><a href="#cb1-68" aria-hidden="true" tabindex="-1"></a>c(\mu) \;=\;</span>
+<span id="cb1-69"><a href="#cb1-69" aria-hidden="true" tabindex="-1"></a>\begin{bmatrix} \mu^{-2} &amp; 1 <span class="sc">\\</span><span class="co">[</span><span class="ot">2pt</span><span class="co">]</span> 1 &amp; 0.7^{-2} \end{bmatrix},</span>
+<span id="cb1-70"><a href="#cb1-70" aria-hidden="true" tabindex="-1"></a>\qquad \mu \in <span class="co">[</span><span class="ot">0.4,\, 1</span><span class="co">]</span> .</span>
+<span id="cb1-71"><a href="#cb1-71" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-72"><a href="#cb1-72" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-73"><a href="#cb1-73" aria-hidden="true" tabindex="-1"></a>Only the $(1,1)$ entry varies with $\mu$; the other three are fixed. Because the</span>
+<span id="cb1-74"><a href="#cb1-74" aria-hidden="true" tabindex="-1"></a>weak form is **affine in the entries of $c$**, the stiffness matrix decomposes</span>
+<span id="cb1-75"><a href="#cb1-75" aria-hidden="true" tabindex="-1"></a>into four fixed tensor-component matrices $K_{ij}$ (one per entry of $c$),</span>
+<span id="cb1-76"><a href="#cb1-76" aria-hidden="true" tabindex="-1"></a>assembled once:</span>
+<span id="cb1-77"><a href="#cb1-77" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-78"><a href="#cb1-78" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-79"><a href="#cb1-79" aria-hidden="true" tabindex="-1"></a>K(\mu) \;=\; \sum_{i,j \in <span class="sc">\{</span>1,2<span class="sc">\}</span>} c_{ij}(\mu)\, K_{ij}</span>
+<span id="cb1-80"><a href="#cb1-80" aria-hidden="true" tabindex="-1"></a>\;=\; \mu^{-2}\,K_{11} \;+\; \bigl(K_{12} + K_{21} + 0.7^{-2}\,K_{22}\bigr).</span>
+<span id="cb1-81"><a href="#cb1-81" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-82"><a href="#cb1-82" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-83"><a href="#cb1-83" aria-hidden="true" tabindex="-1"></a>Each parameter point then costs four cached component contractions plus one</span>
+<span id="cb1-84"><a href="#cb1-84" aria-hidden="true" tabindex="-1"></a>eigensolve — no re-meshing, no per-$\mu$ quadrature. This affine structure is</span>
+<span id="cb1-85"><a href="#cb1-85" aria-hidden="true" tabindex="-1"></a>what the surrogate construction relies on.</span>
+<span id="cb1-86"><a href="#cb1-86" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-87"><a href="#cb1-87" aria-hidden="true" tabindex="-1"></a><span class="fu">## A single subinterval</span></span>
+<span id="cb1-88"><a href="#cb1-88" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-89"><a href="#cb1-89" aria-hidden="true" tabindex="-1"></a>Before any sweep, consider the method on a **single subinterval**</span>
+<span id="cb1-90"><a href="#cb1-90" aria-hidden="true" tabindex="-1"></a>$<span class="co">[</span><span class="ot">\mu_1, \mu_2</span><span class="co">]</span> = <span class="co">[</span><span class="ot">0.4, 0.7</span><span class="co">]</span>$ — the atomic operation the adaptive loop repeats on</span>
+<span id="cb1-91"><a href="#cb1-91" aria-hidden="true" tabindex="-1"></a>every edge of its grid, and the reference's worked §3.3.1 example. Understand</span>
+<span id="cb1-92"><a href="#cb1-92" aria-hidden="true" tabindex="-1"></a>one edge and the whole loop is just "do this everywhere, bisect where it fails".</span>
+<span id="cb1-93"><a href="#cb1-93" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-94"><a href="#cb1-94" aria-hidden="true" tabindex="-1"></a>Inside the spectral window $I_\lambda = <span class="co">[</span><span class="ot">0, 270</span><span class="co">]</span>$ there are four eigenvalues at</span>
+<span id="cb1-95"><a href="#cb1-95" aria-hidden="true" tabindex="-1"></a>$\mu_1 = 0.4$ and nine at $\mu_2 = 0.7$ (the reference reports exactly this band</span>
+<span id="cb1-96"><a href="#cb1-96" aria-hidden="true" tabindex="-1"></a>count). Two steps:</span>
+<span id="cb1-97"><a href="#cb1-97" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-98"><a href="#cb1-98" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**A-priori matching.** Build the cost matrix $D_{j\ell}$ pairing each</span>
+<span id="cb1-99"><a href="#cb1-99" aria-hidden="true" tabindex="-1"></a>   $\mu_1$-band $j$ with each $\mu_2$-band $\ell$ — a weighted sum of eigenvalue</span>
+<span id="cb1-100"><a href="#cb1-100" aria-hidden="true" tabindex="-1"></a>   distance (weight $1$) and eigenvector misalignment (weight $200$, measured by</span>
+<span id="cb1-101"><a href="#cb1-101" aria-hidden="true" tabindex="-1"></a>   the $M$-inner-product principal angle). The optimal (Hungarian) assignment</span>
+<span id="cb1-102"><a href="#cb1-102" aria-hidden="true" tabindex="-1"></a>   matches the four $\mu_1$-bands to $\mu_2$-bands $\sigma^\star = (1, 2, 5, 8)$</span>
+<span id="cb1-103"><a href="#cb1-103" aria-hidden="true" tabindex="-1"></a>   (1-indexed).</span>
+<span id="cb1-104"><a href="#cb1-104" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**A-posteriori certification.** Form the projection matrix</span>
+<span id="cb1-105"><a href="#cb1-105" aria-hidden="true" tabindex="-1"></a>   $\Pi_{j\ell} = v_j(\mu_1)^\top M(\bar\mu)\, v_\ell(\mu_2)$ on the matched core</span>
+<span id="cb1-106"><a href="#cb1-106" aria-hidden="true" tabindex="-1"></a>   and apply the relative threshold $t_\pi = 0.21$ (the reference's stated value</span>
+<span id="cb1-107"><a href="#cb1-107" aria-hidden="true" tabindex="-1"></a>   for this worked subinterval). The first matched pair is uniquely supported →</span>
+<span id="cb1-108"><a href="#cb1-108" aria-hidden="true" tabindex="-1"></a>   **certified**; the second has a competing off-pair entry → **refine**; the</span>
+<span id="cb1-109"><a href="#cb1-109" aria-hidden="true" tabindex="-1"></a>   higher pairs sit in a shared near-degenerate cluster → **cluster**.</span>
+<span id="cb1-110"><a href="#cb1-110" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-111"><a href="#cb1-111" aria-hidden="true" tabindex="-1"></a>!<span class="co">[</span><span class="ot">**Subinterval matching** on $[0.4, 0.7]$. *Left:* cost matrix $D$ (4 bands at $\mu=0.4$ × 9 at $\mu=0.7$); the optimal assignment $\sigma^\star = (1,2,5,8)$ is outlined in red. *Right:* $|\Pi|$ on the matched core with each pair's $t_\pi = 0.21$ verdict (green certified, red refine, orange cluster).</span><span class="co">](../figures/diffusion-1param/subinterval-matching.png)</span></span>
+<span id="cb1-112"><a href="#cb1-112" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-113"><a href="#cb1-113" aria-hidden="true" tabindex="-1"></a>A **refine** verdict on any edge tells the loop to bisect it and re-test the two</span>
+<span id="cb1-114"><a href="#cb1-114" aria-hidden="true" tabindex="-1"></a>halves. Both sweeps below are exactly this operation on an adaptively growing</span>
+<span id="cb1-115"><a href="#cb1-115" aria-hidden="true" tabindex="-1"></a>grid — they differ only in *how many bands* each grid point carries.</span>
+<span id="cb1-116"><a href="#cb1-116" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-117"><a href="#cb1-117" aria-hidden="true" tabindex="-1"></a><span class="fu">## Discretisation</span></span>
+<span id="cb1-118"><a href="#cb1-118" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-119"><a href="#cb1-119" aria-hidden="true" tabindex="-1"></a>Both runs share the same spatial discretisation and parameter domain; only the</span>
+<span id="cb1-120"><a href="#cb1-120" aria-hidden="true" tabindex="-1"></a>spectral bookkeeping (and so the tolerances tied to it) differs between modes.</span>
+<span id="cb1-121"><a href="#cb1-121" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-122"><a href="#cb1-122" aria-hidden="true" tabindex="-1"></a>| Quantity | Value | Role |</span>
+<span id="cb1-123"><a href="#cb1-123" aria-hidden="true" tabindex="-1"></a>|---|---|---|</span>
+<span id="cb1-124"><a href="#cb1-124" aria-hidden="true" tabindex="-1"></a>| Mesh | $\texttt{mesh<span class="sc">\_</span>n} = 64$, P1 triangulation | spatial discretisation (rebuild choice; fine enough that the crossings below are mesh-independent) |</span>
+<span id="cb1-125"><a href="#cb1-125" aria-hidden="true" tabindex="-1"></a>| Parameter box | $\mu \in <span class="co">[</span><span class="ot">0.4,\, 1.0</span><span class="co">]</span>$, $d_{\text{param}} = 1$ | parameter domain |</span>
+<span id="cb1-126"><a href="#cb1-126" aria-hidden="true" tabindex="-1"></a>| Max refinement levels | $8$ (Window terminates at $L = 3$, FirstK at $L = 1$) | iteration cap |</span>
+<span id="cb1-127"><a href="#cb1-127" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-128"><a href="#cb1-128" aria-hidden="true" tabindex="-1"></a>The two operating modes split here:</span>
+<span id="cb1-129"><a href="#cb1-129" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-130"><a href="#cb1-130" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Window mode** keeps whichever eigenvalues fall inside a fixed spectral</span>
+<span id="cb1-131"><a href="#cb1-131" aria-hidden="true" tabindex="-1"></a>  window $I_\lambda = <span class="co">[</span><span class="ot">0, 270</span><span class="co">]</span>$, so per-node rank is **ragged** (4 bands at</span>
+<span id="cb1-132"><a href="#cb1-132" aria-hidden="true" tabindex="-1"></a>  $\mu = 0.4$, 9 at $\mu = 0.7$). This is how the reference 1-D example was</span>
+<span id="cb1-133"><a href="#cb1-133" aria-hidden="true" tabindex="-1"></a>  actually computed.</span>
+<span id="cb1-134"><a href="#cb1-134" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**FirstK mode** keeps a fixed number $n_{\text{eigs}} = 6$ of the smallest</span>
+<span id="cb1-135"><a href="#cb1-135" aria-hidden="true" tabindex="-1"></a>  bands at every node. This is the rebuild's fixed-band approximation.</span>
+<span id="cb1-136"><a href="#cb1-136" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-137"><a href="#cb1-137" aria-hidden="true" tabindex="-1"></a>Each mode is treated in full below, on its own honest tolerances, before they</span>
+<span id="cb1-138"><a href="#cb1-138" aria-hidden="true" tabindex="-1"></a>are compared.</span>
+<span id="cb1-139"><a href="#cb1-139" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-140"><a href="#cb1-140" aria-hidden="true" tabindex="-1"></a><span class="fu">## Window mode — the faithful reproduction</span></span>
+<span id="cb1-141"><a href="#cb1-141" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-142"><a href="#cb1-142" aria-hidden="true" tabindex="-1"></a>This is the run that reproduces the reference 1-D grid, because</span>
+<span id="cb1-143"><a href="#cb1-143" aria-hidden="true" tabindex="-1"></a>the §3.3.2 example was itself computed in **window mode**. Snapshots are</span>
+<span id="cb1-144"><a href="#cb1-144" aria-hidden="true" tabindex="-1"></a>**ragged**: each parameter point keeps whatever eigenpairs fall inside the fixed</span>
+<span id="cb1-145"><a href="#cb1-145" aria-hidden="true" tabindex="-1"></a>window</span>
+<span id="cb1-146"><a href="#cb1-146" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-147"><a href="#cb1-147" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-148"><a href="#cb1-148" aria-hidden="true" tabindex="-1"></a>I_\lambda = <span class="co">[</span><span class="ot">0,\, 270</span><span class="co">]</span></span>
+<span id="cb1-149"><a href="#cb1-149" aria-hidden="true" tabindex="-1"></a>$$</span>
+<span id="cb1-150"><a href="#cb1-150" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-151"><a href="#cb1-151" aria-hidden="true" tabindex="-1"></a>(the reference's stated window — the band counts it reports, four eigenvalues at</span>
+<span id="cb1-152"><a href="#cb1-152" aria-hidden="true" tabindex="-1"></a>$\mu = 0.4$ and nine at $\mu = 0.7$, are reproduced exactly). The verdicts use</span>
+<span id="cb1-153"><a href="#cb1-153" aria-hidden="true" tabindex="-1"></a>the one a-posteriori (Hungarian) path with anchored-absolute pruning at $(t_\pi = 0.21,\,</span>
+<span id="cb1-154"><a href="#cb1-154" aria-hidden="true" tabindex="-1"></a>t_\lambda = 0.085)$: $t_\pi = 0.21$ is the §3.3.1 subinterval value above, and</span>
+<span id="cb1-155"><a href="#cb1-155" aria-hidden="true" tabindex="-1"></a>$t_\lambda = 0.085$ is the MATLAB clustering tolerance — the pair is validated</span>
+<span id="cb1-156"><a href="#cb1-156" aria-hidden="true" tabindex="-1"></a>by reproducing the published $L=0\ldots L=3$ grid exactly (below). A surplus</span>
+<span id="cb1-157"><a href="#cb1-157" aria-hidden="true" tabindex="-1"></a>band that merely **enters or leaves** the window between adjacent nodes is</span>
+<span id="cb1-158"><a href="#cb1-158" aria-hidden="true" tabindex="-1"></a>certified by a row-$\ell_2$-norm test (the reference's Algorithm 6</span>
+<span id="cb1-159"><a href="#cb1-159" aria-hidden="true" tabindex="-1"></a>"certify, don't refine" gate) rather than forcing refinement; those</span>
+<span id="cb1-160"><a href="#cb1-160" aria-hidden="true" tabindex="-1"></a>enter/exit events are recorded for introspection but do not drive the grid.</span>
+<span id="cb1-161"><a href="#cb1-161" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-162"><a href="#cb1-162" aria-hidden="true" tabindex="-1"></a><span class="fu">### Reference spectrum</span></span>
+<span id="cb1-163"><a href="#cb1-163" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-164"><a href="#cb1-164" aria-hidden="true" tabindex="-1"></a>The ground truth: a dense $\mu$-sweep, solved **directly on a window** $<span class="co">[</span><span class="ot">0, 400</span><span class="co">]</span>$</span>
+<span id="cb1-165"><a href="#cb1-165" aria-hidden="true" tabindex="-1"></a>— each $\mu$-point returns *exactly* the eigenpairs inside that band (a ragged</span>
+<span id="cb1-166"><a href="#cb1-166" aria-hidden="true" tabindex="-1"></a>window solve, nothing above $400$ computed, nothing clipped) — and drawn in</span>
+<span id="cb1-167"><a href="#cb1-167" aria-hidden="true" tabindex="-1"></a>**character-tracked branch order**: each curve follows one eigenfunction</span>
+<span id="cb1-168"><a href="#cb1-168" aria-hidden="true" tabindex="-1"></a>(matched by mass-overlap across the sweep), so where two branches exchange</span>
+<span id="cb1-169"><a href="#cb1-169" aria-hidden="true" tabindex="-1"></a>energetic order the figure draws a genuine crossing instead of sorting it away.</span>
+<span id="cb1-170"><a href="#cb1-170" aria-hidden="true" tabindex="-1"></a>The parameter is one-dimensional, so every crossing here is *avoided* — the gap</span>
+<span id="cb1-171"><a href="#cb1-171" aria-hidden="true" tabindex="-1"></a>stays positive, there is no true degeneracy (that needs two free parameters). But</span>
+<span id="cb1-172"><a href="#cb1-172" aria-hidden="true" tabindex="-1"></a>an avoided crossing **still exchanges eigenfunction character**: the two branches</span>
+<span id="cb1-173"><a href="#cb1-173" aria-hidden="true" tabindex="-1"></a>approach, swap which one is higher, and separate, so their curves cross. This</span>
+<span id="cb1-174"><a href="#cb1-174" aria-hidden="true" tabindex="-1"></a>example carries four such swaps — bands 3↔4 (near $\mu \approx 0.45$ and again</span>
+<span id="cb1-175"><a href="#cb1-175" aria-hidden="true" tabindex="-1"></a>$\approx 0.86$), 5↔6 ($\approx 0.72$), and 7↔8 ($\approx 0.81$) — visible as X</span>
+<span id="cb1-176"><a href="#cb1-176" aria-hidden="true" tabindex="-1"></a>crossings in the low bands. The grey strip is the algorithm's kept window</span>
+<span id="cb1-177"><a href="#cb1-177" aria-hidden="true" tabindex="-1"></a>$I_\lambda = <span class="co">[</span><span class="ot">0, 270</span><span class="co">]</span>$; the sweep window runs a little higher so the bands that</span>
+<span id="cb1-178"><a href="#cb1-178" aria-hidden="true" tabindex="-1"></a>descend into the kept window as $\mu$ grows are visible entering from above. The</span>
+<span id="cb1-179"><a href="#cb1-179" aria-hidden="true" tabindex="-1"></a>adaptive loop has no access to this; it must rediscover the crossings from local</span>
+<span id="cb1-180"><a href="#cb1-180" aria-hidden="true" tabindex="-1"></a>edge tests alone.</span>
+<span id="cb1-181"><a href="#cb1-181" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-182"><a href="#cb1-182" aria-hidden="true" tabindex="-1"></a>!<span class="co">[</span><span class="ot">**Reference spectrum**, solved directly on the window $[0, 400]$ (no clipping); the grey strip is the algorithm's kept window $I_\lambda=[0,270]$. Branches are **character-tracked**, so the four avoided crossings show as X crossings where two curves exchange order. The band-7/8 **avoided crossing** near $\mu \approx 0.81$ — where two branches approach to a minimum gap of $\approx 13.7$ and separate, exchanging eigenfunction character without touching (an *avoided* crossing: the gap never reaches zero) — is the event refinement concentrates on. Bands descend into the window from above as $\mu$ grows.</span><span class="co">](../figures/diffusion-1param/window/reference-spectrum.png)</span></span>
+<span id="cb1-183"><a href="#cb1-183" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-184"><a href="#cb1-184" aria-hidden="true" tabindex="-1"></a><span class="fu">### Adaptive grid evolution</span></span>
+<span id="cb1-185"><a href="#cb1-185" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-186"><a href="#cb1-186" aria-hidden="true" tabindex="-1"></a>Drag the slider (or use ←/→ when focused) to step through $L = 0..3$. Nodes are</span>
+<span id="cb1-187"><a href="#cb1-187" aria-hidden="true" tabindex="-1"></a>coloured by insertion level; the loop bisects only edges flagged for refinement,</span>
+<span id="cb1-188"><a href="#cb1-188" aria-hidden="true" tabindex="-1"></a>so nodes pile up around the crossing region. The grid grows $3 \to 5 \to 7 \to</span>
+<span id="cb1-189"><a href="#cb1-189" aria-hidden="true" tabindex="-1"></a>8$ nodes.</span>
+<span id="cb1-190"><a href="#cb1-190" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-191"><a href="#cb1-191" aria-hidden="true" tabindex="-1"></a><span class="in">```{=html}</span></span>
+<span id="cb1-192"><a href="#cb1-192" aria-hidden="true" tabindex="-1"></a><span class="in">&lt;div class="level-scroll"</span></span>
+<span id="cb1-193"><a href="#cb1-193" aria-hidden="true" tabindex="-1"></a><span class="in">     data-frames="../figures/diffusion-1param/window/grid-level-1.png,../figures/diffusion-1param/window/grid-level-2.png,../figures/diffusion-1param/window/grid-level-3.png,../figures/diffusion-1param/window/grid-level-4.png"</span></span>
+<span id="cb1-194"><a href="#cb1-194" aria-hidden="true" tabindex="-1"></a><span class="in">     data-caption="Adaptive grid (Window) at L={i}"</span></span>
+<span id="cb1-195"><a href="#cb1-195" aria-hidden="true" tabindex="-1"></a><span class="in">     data-level-start="0"&gt;</span></span>
+<span id="cb1-196"><a href="#cb1-196" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;img class="frame" src="../figures/diffusion-1param/window/grid-level-1.png" alt="Adaptive grid per refinement level (Window)"&gt;</span></span>
+<span id="cb1-197"><a href="#cb1-197" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;input type="range" min="0" max="3" step="1" value="0"&gt;</span></span>
+<span id="cb1-198"><a href="#cb1-198" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;div class="caption"&gt;&lt;span class="level"&gt;Adaptive grid (Window) at L=0&lt;/span&gt;&lt;/div&gt;</span></span>
+<span id="cb1-199"><a href="#cb1-199" aria-hidden="true" tabindex="-1"></a><span class="in">&lt;/div&gt;</span></span>
+<span id="cb1-200"><a href="#cb1-200" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb1-201"><a href="#cb1-201" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-202"><a href="#cb1-202" aria-hidden="true" tabindex="-1"></a><span class="fu">### Per-level surrogate</span></span>
+<span id="cb1-203"><a href="#cb1-203" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-204"><a href="#cb1-204" aria-hidden="true" tabindex="-1"></a>Solid coloured curves are the surrogate, reconstructed from the greedy grid's</span>
+<span id="cb1-205"><a href="#cb1-205" aria-hidden="true" tabindex="-1"></a>**own stored matchings** (not re-matched) by the same fixed-slot reshuffle used</span>
+<span id="cb1-206"><a href="#cb1-206" aria-hidden="true" tabindex="-1"></a>for the reference spectrum; dashed grey is the dense reference. Branch $k$ of the</span>
+<span id="cb1-207"><a href="#cb1-207" aria-hidden="true" tabindex="-1"></a>surrogate keeps one colour across every level and follows branch $k$ of the</span>
+<span id="cb1-208"><a href="#cb1-208" aria-hidden="true" tabindex="-1"></a>reference *through* a crossing. Scroll through $L = 0..3$ to watch the surrogate</span>
+<span id="cb1-209"><a href="#cb1-209" aria-hidden="true" tabindex="-1"></a>converge as the grid refines. Where a band drops out of $<span class="co">[</span><span class="ot">0, 270</span><span class="co">]</span>$ between</span>
+<span id="cb1-210"><a href="#cb1-210" aria-hidden="true" tabindex="-1"></a>adjacent nodes the window surrogate shows an honest **gap in a fixed slot** — the</span>
+<span id="cb1-211"><a href="#cb1-211" aria-hidden="true" tabindex="-1"></a>broken curve is one branch keeping its colour across a window exit/entry, never a</span>
+<span id="cb1-212"><a href="#cb1-212" aria-hidden="true" tabindex="-1"></a>connector to an unrelated branch.</span>
+<span id="cb1-213"><a href="#cb1-213" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-214"><a href="#cb1-214" aria-hidden="true" tabindex="-1"></a><span class="in">```{=html}</span></span>
+<span id="cb1-215"><a href="#cb1-215" aria-hidden="true" tabindex="-1"></a><span class="in">&lt;div class="level-scroll"</span></span>
+<span id="cb1-216"><a href="#cb1-216" aria-hidden="true" tabindex="-1"></a><span class="in">     data-frames="../figures/diffusion-1param/window/surrogate-level-1.png,../figures/diffusion-1param/window/surrogate-level-2.png,../figures/diffusion-1param/window/surrogate-level-3.png,../figures/diffusion-1param/window/surrogate-level-4.png"</span></span>
+<span id="cb1-217"><a href="#cb1-217" aria-hidden="true" tabindex="-1"></a><span class="in">     data-caption="Piecewise-linear surrogate (Window) at L={i}"</span></span>
+<span id="cb1-218"><a href="#cb1-218" aria-hidden="true" tabindex="-1"></a><span class="in">     data-level-start="0"&gt;</span></span>
+<span id="cb1-219"><a href="#cb1-219" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;img class="frame" src="../figures/diffusion-1param/window/surrogate-level-1.png" alt="Per-level surrogate spectrum (Window)"&gt;</span></span>
+<span id="cb1-220"><a href="#cb1-220" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;input type="range" min="0" max="3" step="1" value="0"&gt;</span></span>
+<span id="cb1-221"><a href="#cb1-221" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;div class="caption"&gt;&lt;span class="level"&gt;Piecewise-linear surrogate (Window) at L=0&lt;/span&gt;&lt;/div&gt;</span></span>
+<span id="cb1-222"><a href="#cb1-222" aria-hidden="true" tabindex="-1"></a><span class="in">&lt;/div&gt;</span></span>
+<span id="cb1-223"><a href="#cb1-223" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb1-224"><a href="#cb1-224" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-225"><a href="#cb1-225" aria-hidden="true" tabindex="-1"></a><span class="fu">### A-posteriori projection matrices</span></span>
+<span id="cb1-226"><a href="#cb1-226" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-227"><a href="#cb1-227" aria-hidden="true" tabindex="-1"></a>Each panel shows eigenvalues scattered in the $(\mu, \lambda)$ plane at the</span>
+<span id="cb1-228"><a href="#cb1-228" aria-hidden="true" tabindex="-1"></a>grid nodes active at that level. **Solid coloured lines** are the a-priori</span>
+<span id="cb1-229"><a href="#cb1-229" aria-hidden="true" tabindex="-1"></a>Hungarian-matched pairs — the algorithm's candidate for "same branch, step</span>
+<span id="cb1-230"><a href="#cb1-230" aria-hidden="true" tabindex="-1"></a>left." **Black dashed lines** are alternative matchings: off-diagonal entries</span>
+<span id="cb1-231"><a href="#cb1-231" aria-hidden="true" tabindex="-1"></a>$|\Pi_{j\ell}|$ that survive the pruning threshold but are not the primary</span>
+<span id="cb1-232"><a href="#cb1-232" aria-hidden="true" tabindex="-1"></a>match. Their presence at an edge is the direct REFINE signal — it says "I</span>
+<span id="cb1-233"><a href="#cb1-233" aria-hidden="true" tabindex="-1"></a>cannot confidently assign a unique partner to this band."</span>
+<span id="cb1-234"><a href="#cb1-234" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-235"><a href="#cb1-235" aria-hidden="true" tabindex="-1"></a><span class="in">```{=html}</span></span>
+<span id="cb1-236"><a href="#cb1-236" aria-hidden="true" tabindex="-1"></a><span class="in">&lt;div class="level-scroll"</span></span>
+<span id="cb1-237"><a href="#cb1-237" aria-hidden="true" tabindex="-1"></a><span class="in">     data-frames="../figures/diffusion-1param/window/aposteriori-summary-1.png,../figures/diffusion-1param/window/aposteriori-summary-2.png,../figures/diffusion-1param/window/aposteriori-summary-3.png,../figures/diffusion-1param/window/aposteriori-summary-4.png"</span></span>
+<span id="cb1-238"><a href="#cb1-238" aria-hidden="true" tabindex="-1"></a><span class="in">     data-caption="A-posteriori summary (Window) at L={i}"</span></span>
+<span id="cb1-239"><a href="#cb1-239" aria-hidden="true" tabindex="-1"></a><span class="in">     data-level-start="0"&gt;</span></span>
+<span id="cb1-240"><a href="#cb1-240" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;img class="frame" src="../figures/diffusion-1param/window/aposteriori-summary-1.png" alt="A-posteriori summary (Window) at L=0"&gt;</span></span>
+<span id="cb1-241"><a href="#cb1-241" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;input type="range" min="0" max="3" step="1" value="0"&gt;</span></span>
+<span id="cb1-242"><a href="#cb1-242" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;div class="caption"&gt;&lt;span class="level"&gt;A-posteriori summary (Window) at L=0&lt;/span&gt;&lt;/div&gt;</span></span>
+<span id="cb1-243"><a href="#cb1-243" aria-hidden="true" tabindex="-1"></a><span class="in">&lt;/div&gt;</span></span>
+<span id="cb1-244"><a href="#cb1-244" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb1-245"><a href="#cb1-245" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-246"><a href="#cb1-246" aria-hidden="true" tabindex="-1"></a>At $L = 0$, dashed lines cluster near the avoided crossing ($\mu \approx 0.8$),</span>
+<span id="cb1-247"><a href="#cb1-247" aria-hidden="true" tabindex="-1"></a>flagging those subintervals for refinement. By $L = 3$, all dashed lines are</span>
+<span id="cb1-248"><a href="#cb1-248" aria-hidden="true" tabindex="-1"></a>gone — every subinterval is certified and the run terminates.</span>
+<span id="cb1-249"><a href="#cb1-249" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-250"><a href="#cb1-250" aria-hidden="true" tabindex="-1"></a><span class="fu">### The avoided crossing at $[0.775,\,0.85]$</span></span>
+<span id="cb1-251"><a href="#cb1-251" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-252"><a href="#cb1-252" aria-hidden="true" tabindex="-1"></a>This is what the whole apparatus exists to catch. Between $\mu = 0.775$ and</span>
+<span id="cb1-253"><a href="#cb1-253" aria-hidden="true" tabindex="-1"></a>$\mu = 0.85$, bands 7 and 8 (1-indexed) approach to a minimum gap of $\approx</span>
+<span id="cb1-254"><a href="#cb1-254" aria-hidden="true" tabindex="-1"></a>13.7$ and exchange character — an **avoided** crossing (the gap stays positive;</span>
+<span id="cb1-255"><a href="#cb1-255" aria-hidden="true" tabindex="-1"></a>the branches never truly meet). Two independent signals flag the edge:</span>
+<span id="cb1-256"><a href="#cb1-256" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-257"><a href="#cb1-257" aria-hidden="true" tabindex="-1"></a><span class="ss">1. </span>**Projection mass.** The $2\times2$ sub-block of $\Pi$ over bands 7–8 is no</span>
+<span id="cb1-258"><a href="#cb1-258" aria-hidden="true" tabindex="-1"></a>   longer diagonal — each band at the left endpoint has substantial $M$-overlap</span>
+<span id="cb1-259"><a href="#cb1-259" aria-hidden="true" tabindex="-1"></a>   with *both* bands at the right endpoint, so neither matched pair is uniquely</span>
+<span id="cb1-260"><a href="#cb1-260" aria-hidden="true" tabindex="-1"></a>   supported and the relative threshold keeps the off-pair entries.</span>
+<span id="cb1-261"><a href="#cb1-261" aria-hidden="true" tabindex="-1"></a><span class="ss">2. </span>**Eigenfunction overlap.** The eigenfunctions themselves rotate into one</span>
+<span id="cb1-262"><a href="#cb1-262" aria-hidden="true" tabindex="-1"></a>   another across the edge — visible directly below.</span>
+<span id="cb1-263"><a href="#cb1-263" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-264"><a href="#cb1-264" aria-hidden="true" tabindex="-1"></a><span class="al">![**Eigenfunctions at the crossing** — bands 7 (top row) and 8 (bottom row) at $\mu = 0.775$ (left) and $\mu = 0.85$ (right), solved at exactly the overlap pair. The band-7 and band-8 shapes swap their dominant lobe structure between the two $\mu$-values — the spatial signature of the avoided crossing.](../figures/diffusion-1param/window/crossing-eigenfunctions.png)</span></span>
+<span id="cb1-265"><a href="#cb1-265" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-266"><a href="#cb1-266" aria-hidden="true" tabindex="-1"></a><span class="fu">### Error table</span></span>
+<span id="cb1-267"><a href="#cb1-267" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-268"><a href="#cb1-268" aria-hidden="true" tabindex="-1"></a>The run, level by level — the reference **Table 1D Error**. This is the</span>
+<span id="cb1-269"><a href="#cb1-269" aria-hidden="true" tabindex="-1"></a>faithful reproduction: the reference $3 \to 5 \to 7 \to 8$ node progression,</span>
+<span id="cb1-270"><a href="#cb1-270" aria-hidden="true" tabindex="-1"></a>terminating at $L = 3$ with every subinterval certified.</span>
+<span id="cb1-271"><a href="#cb1-271" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-272"><a href="#cb1-272" aria-hidden="true" tabindex="-1"></a>| Level | $n_{\text{points}}$ | $n_{\text{subintervals}}$ | $n_{\text{uncertified}}$ |</span>
+<span id="cb1-273"><a href="#cb1-273" aria-hidden="true" tabindex="-1"></a>|---|---|---|---|</span>
+<span id="cb1-274"><a href="#cb1-274" aria-hidden="true" tabindex="-1"></a>| 0 | 3 | 2 | 2 |</span>
+<span id="cb1-275"><a href="#cb1-275" aria-hidden="true" tabindex="-1"></a>| 1 | 5 | 4 | 2 |</span>
+<span id="cb1-276"><a href="#cb1-276" aria-hidden="true" tabindex="-1"></a>| 2 | 7 | 4 | 1 |</span>
+<span id="cb1-277"><a href="#cb1-277" aria-hidden="true" tabindex="-1"></a>| 3 | 8 | 2 | 0 |</span>
+<span id="cb1-278"><a href="#cb1-278" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-279"><a href="#cb1-279" aria-hidden="true" tabindex="-1"></a><span class="in">`n_uncertified`</span> counts the subintervals flagged for refinement (REFINE) at each</span>
+<span id="cb1-280"><a href="#cb1-280" aria-hidden="true" tabindex="-1"></a>level; it falls to $0$ at $L = 3$, where the run terminates with <span class="in">`ran_out=False`</span>.</span>
+<span id="cb1-281"><a href="#cb1-281" aria-hidden="true" tabindex="-1"></a>There is no <span class="in">`n_wrong_match`</span> column here: that FirstK diagnostic compares each</span>
+<span id="cb1-282"><a href="#cb1-282" aria-hidden="true" tabindex="-1"></a>node's propagated band labels against a *fixed-band* truth sweep, and window</span>
+<span id="cb1-283"><a href="#cb1-283" aria-hidden="true" tabindex="-1"></a>mode's ragged ranks have no fixed band index to compare against. The CSV behind</span>
+<span id="cb1-284"><a href="#cb1-284" aria-hidden="true" tabindex="-1"></a>this table is <span class="in">`window/error_table.csv`</span>.</span>
+<span id="cb1-285"><a href="#cb1-285" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-286"><a href="#cb1-286" aria-hidden="true" tabindex="-1"></a><span class="fu">### Verdict map</span></span>
+<span id="cb1-287"><a href="#cb1-287" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-288"><a href="#cb1-288" aria-hidden="true" tabindex="-1"></a><span class="al">![**Verdict map** (Window) — each tested edge as a horizontal segment at $y = \text{level}$, coloured by majority verdict. Band enter/exit events are recorded for introspection but, under the Algorithm 6 row-norm gate, do not by themselves drive refinement.](../figures/diffusion-1param/window/verdict-map.png)</span></span>
+<span id="cb1-289"><a href="#cb1-289" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-290"><a href="#cb1-290" aria-hidden="true" tabindex="-1"></a>**Summary.** Window mode is the faithful reproduction of the reference</span>
+<span id="cb1-291"><a href="#cb1-291" aria-hidden="true" tabindex="-1"></a>§3.3.2 result: the reference 8-node Table 1D Error grid, computed on the</span>
+<span id="cb1-292"><a href="#cb1-292" aria-hidden="true" tabindex="-1"></a>reference window $I_\lambda = <span class="co">[</span><span class="ot">0, 270</span><span class="co">]</span>$, surfacing the band-7/8 avoided crossing</span>
+<span id="cb1-293"><a href="#cb1-293" aria-hidden="true" tabindex="-1"></a>its ragged ranks are wide enough to see.</span>
+<span id="cb1-294"><a href="#cb1-294" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-295"><a href="#cb1-295" aria-hidden="true" tabindex="-1"></a><span class="fu">## FirstK mode — the fixed-band approximation</span></span>
+<span id="cb1-296"><a href="#cb1-296" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-297"><a href="#cb1-297" aria-hidden="true" tabindex="-1"></a>The same problem, with different spectral bookkeeping: keep a **fixed**</span>
+<span id="cb1-298"><a href="#cb1-298" aria-hidden="true" tabindex="-1"></a>$n_{\text{eigs}} = 6$ smallest bands at every node, regardless of where the</span>
+<span id="cb1-299"><a href="#cb1-299" aria-hidden="true" tabindex="-1"></a>spectrum sits. This is the rebuild's generic mode — it needs no problem-specific</span>
+<span id="cb1-300"><a href="#cb1-300" aria-hidden="true" tabindex="-1"></a>window — but on this example it is an *approximation*, not the reference</span>
+<span id="cb1-301"><a href="#cb1-301" aria-hidden="true" tabindex="-1"></a>method, and it is honest to say where that bites.</span>
+<span id="cb1-302"><a href="#cb1-302" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-303"><a href="#cb1-303" aria-hidden="true" tabindex="-1"></a>The tolerances are the reference's **stated** 1-D values, which also coincide</span>
+<span id="cb1-304"><a href="#cb1-304" aria-hidden="true" tabindex="-1"></a>with the rebuild's library defaults:</span>
+<span id="cb1-305"><a href="#cb1-305" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-306"><a href="#cb1-306" aria-hidden="true" tabindex="-1"></a>| Quantity | Value | Role |</span>
+<span id="cb1-307"><a href="#cb1-307" aria-hidden="true" tabindex="-1"></a>|---|---|---|</span>
+<span id="cb1-308"><a href="#cb1-308" aria-hidden="true" tabindex="-1"></a>| Eigenvalues per point | $n_{\text{eigs}} = 6$ | fixed band count (rebuild choice) |</span>
+<span id="cb1-309"><a href="#cb1-309" aria-hidden="true" tabindex="-1"></a>| Pruning threshold | $t_\pi = 0.21$ | relative cutoff for off-pair projection mass (reference value) |</span>
+<span id="cb1-310"><a href="#cb1-310" aria-hidden="true" tabindex="-1"></a>| Eigenvalue cluster threshold | $t_\lambda = 0.001$ | groups near-degenerate bands (reference value) |</span>
+<span id="cb1-311"><a href="#cb1-311" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-312"><a href="#cb1-312" aria-hidden="true" tabindex="-1"></a><span class="fu">### Reference spectrum</span></span>
+<span id="cb1-313"><a href="#cb1-313" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-314"><a href="#cb1-314" aria-hidden="true" tabindex="-1"></a>The same dense ground-truth sweep as above, here without window shading — FirstK</span>
+<span id="cb1-315"><a href="#cb1-315" aria-hidden="true" tabindex="-1"></a>carries six bands, so the figure shows the two low-band avoided crossings that</span>
+<span id="cb1-316"><a href="#cb1-316" aria-hidden="true" tabindex="-1"></a>fall inside them (3↔4 near $\mu \approx 0.45$ and $\approx 0.86$, 5↔6 near</span>
+<span id="cb1-317"><a href="#cb1-317" aria-hidden="true" tabindex="-1"></a>$\approx 0.72$), each drawn as a character-tracked X crossing.</span>
+<span id="cb1-318"><a href="#cb1-318" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-319"><a href="#cb1-319" aria-hidden="true" tabindex="-1"></a><span class="al">![**Reference spectrum** — character-tracked eigenvalue branches from a dense sweep. FirstK with $n_{\text{eigs}} = 6$ carries the lowest six bands, so the 3↔4 and 5↔6 avoided crossings show as X crossings; the band-7/8 avoided crossing near $\mu \approx 0.81$ sits *above* its fixed cutoff, so FirstK sees only the boundary disturbance it casts onto band 6, never that crossing itself.](../figures/diffusion-1param/reference-spectrum.png)</span></span>
+<span id="cb1-320"><a href="#cb1-320" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-321"><a href="#cb1-321" aria-hidden="true" tabindex="-1"></a><span class="fu">### Adaptive grid evolution</span></span>
+<span id="cb1-322"><a href="#cb1-322" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-323"><a href="#cb1-323" aria-hidden="true" tabindex="-1"></a>Drag the slider to step through $L = 0..1$. The grid grows $3 \to 4$ nodes and</span>
+<span id="cb1-324"><a href="#cb1-324" aria-hidden="true" tabindex="-1"></a>terminates at $L = 1$ — it refines *less* than the window run, for the reason</span>
+<span id="cb1-325"><a href="#cb1-325" aria-hidden="true" tabindex="-1"></a>explained in the comparison below.</span>
+<span id="cb1-326"><a href="#cb1-326" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-327"><a href="#cb1-327" aria-hidden="true" tabindex="-1"></a><span class="in">```{=html}</span></span>
+<span id="cb1-328"><a href="#cb1-328" aria-hidden="true" tabindex="-1"></a><span class="in">&lt;div class="level-scroll"</span></span>
+<span id="cb1-329"><a href="#cb1-329" aria-hidden="true" tabindex="-1"></a><span class="in">     data-frames="../figures/diffusion-1param/grid-level-1.png,../figures/diffusion-1param/grid-level-2.png"</span></span>
+<span id="cb1-330"><a href="#cb1-330" aria-hidden="true" tabindex="-1"></a><span class="in">     data-caption="Adaptive grid (FirstK) at L={i}"</span></span>
+<span id="cb1-331"><a href="#cb1-331" aria-hidden="true" tabindex="-1"></a><span class="in">     data-level-start="0"&gt;</span></span>
+<span id="cb1-332"><a href="#cb1-332" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;img class="frame" src="../figures/diffusion-1param/grid-level-1.png" alt="Adaptive grid per refinement level (FirstK)"&gt;</span></span>
+<span id="cb1-333"><a href="#cb1-333" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;input type="range" min="0" max="1" step="1" value="0"&gt;</span></span>
+<span id="cb1-334"><a href="#cb1-334" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;div class="caption"&gt;&lt;span class="level"&gt;Adaptive grid (FirstK) at L=0&lt;/span&gt;&lt;/div&gt;</span></span>
+<span id="cb1-335"><a href="#cb1-335" aria-hidden="true" tabindex="-1"></a><span class="in">&lt;/div&gt;</span></span>
+<span id="cb1-336"><a href="#cb1-336" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb1-337"><a href="#cb1-337" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-338"><a href="#cb1-338" aria-hidden="true" tabindex="-1"></a><span class="fu">### Per-level surrogate</span></span>
+<span id="cb1-339"><a href="#cb1-339" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-340"><a href="#cb1-340" aria-hidden="true" tabindex="-1"></a>Solid coloured curves are the surrogate, reconstructed by the same fixed-slot</span>
+<span id="cb1-341"><a href="#cb1-341" aria-hidden="true" tabindex="-1"></a>reshuffle as the window case above; dashed grey is the dense reference. Unlike</span>
+<span id="cb1-342"><a href="#cb1-342" aria-hidden="true" tabindex="-1"></a>the window surrogate, FirstK's is continuous (fixed rank everywhere, no window</span>
+<span id="cb1-343"><a href="#cb1-343" aria-hidden="true" tabindex="-1"></a>gaps) but stops at band 6.</span>
+<span id="cb1-344"><a href="#cb1-344" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-345"><a href="#cb1-345" aria-hidden="true" tabindex="-1"></a><span class="in">```{=html}</span></span>
+<span id="cb1-346"><a href="#cb1-346" aria-hidden="true" tabindex="-1"></a><span class="in">&lt;div class="level-scroll"</span></span>
+<span id="cb1-347"><a href="#cb1-347" aria-hidden="true" tabindex="-1"></a><span class="in">     data-frames="../figures/diffusion-1param/surrogate-level-1.png,../figures/diffusion-1param/surrogate-level-2.png"</span></span>
+<span id="cb1-348"><a href="#cb1-348" aria-hidden="true" tabindex="-1"></a><span class="in">     data-caption="Piecewise-linear surrogate (FirstK) at L={i}"</span></span>
+<span id="cb1-349"><a href="#cb1-349" aria-hidden="true" tabindex="-1"></a><span class="in">     data-level-start="0"&gt;</span></span>
+<span id="cb1-350"><a href="#cb1-350" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;img class="frame" src="../figures/diffusion-1param/surrogate-level-1.png" alt="Per-level surrogate spectrum (FirstK)"&gt;</span></span>
+<span id="cb1-351"><a href="#cb1-351" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;input type="range" min="0" max="1" step="1" value="0"&gt;</span></span>
+<span id="cb1-352"><a href="#cb1-352" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;div class="caption"&gt;&lt;span class="level"&gt;Piecewise-linear surrogate (FirstK) at L=0&lt;/span&gt;&lt;/div&gt;</span></span>
+<span id="cb1-353"><a href="#cb1-353" aria-hidden="true" tabindex="-1"></a><span class="in">&lt;/div&gt;</span></span>
+<span id="cb1-354"><a href="#cb1-354" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb1-355"><a href="#cb1-355" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-356"><a href="#cb1-356" aria-hidden="true" tabindex="-1"></a><span class="fu">### A-posteriori projection matrices</span></span>
+<span id="cb1-357"><a href="#cb1-357" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-358"><a href="#cb1-358" aria-hidden="true" tabindex="-1"></a>Same layout as the Window section above: solid coloured lines are the</span>
+<span id="cb1-359"><a href="#cb1-359" aria-hidden="true" tabindex="-1"></a>primary Hungarian match; black dashed lines are alternative matches that</span>
+<span id="cb1-360"><a href="#cb1-360" aria-hidden="true" tabindex="-1"></a>survive pruning and trigger refinement.</span>
+<span id="cb1-361"><a href="#cb1-361" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-362"><a href="#cb1-362" aria-hidden="true" tabindex="-1"></a><span class="in">```{=html}</span></span>
+<span id="cb1-363"><a href="#cb1-363" aria-hidden="true" tabindex="-1"></a><span class="in">&lt;div class="level-scroll"</span></span>
+<span id="cb1-364"><a href="#cb1-364" aria-hidden="true" tabindex="-1"></a><span class="in">     data-frames="../figures/diffusion-1param/firstk/aposteriori-summary-1.png,../figures/diffusion-1param/firstk/aposteriori-summary-2.png"</span></span>
+<span id="cb1-365"><a href="#cb1-365" aria-hidden="true" tabindex="-1"></a><span class="in">     data-caption="A-posteriori summary (FirstK) at L={i}"</span></span>
+<span id="cb1-366"><a href="#cb1-366" aria-hidden="true" tabindex="-1"></a><span class="in">     data-level-start="0"&gt;</span></span>
+<span id="cb1-367"><a href="#cb1-367" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;img class="frame" src="../figures/diffusion-1param/firstk/aposteriori-summary-1.png" alt="A-posteriori summary (FirstK) at L=0"&gt;</span></span>
+<span id="cb1-368"><a href="#cb1-368" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;input type="range" min="0" max="1" step="1" value="0"&gt;</span></span>
+<span id="cb1-369"><a href="#cb1-369" aria-hidden="true" tabindex="-1"></a><span class="in">  &lt;div class="caption"&gt;&lt;span class="level"&gt;A-posteriori summary (FirstK) at L=0&lt;/span&gt;&lt;/div&gt;</span></span>
+<span id="cb1-370"><a href="#cb1-370" aria-hidden="true" tabindex="-1"></a><span class="in">&lt;/div&gt;</span></span>
+<span id="cb1-371"><a href="#cb1-371" aria-hidden="true" tabindex="-1"></a><span class="in">```</span></span>
+<span id="cb1-372"><a href="#cb1-372" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-373"><a href="#cb1-373" aria-hidden="true" tabindex="-1"></a>All matrices are square $6 \times 6$ throughout — fixed rank on both sides —</span>
+<span id="cb1-374"><a href="#cb1-374" aria-hidden="true" tabindex="-1"></a>in contrast with the window run's ragged, sometimes rectangular $\Pi$.</span>
+<span id="cb1-375"><a href="#cb1-375" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-376"><a href="#cb1-376" aria-hidden="true" tabindex="-1"></a><span class="fu">### Error table</span></span>
+<span id="cb1-377"><a href="#cb1-377" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-378"><a href="#cb1-378" aria-hidden="true" tabindex="-1"></a>The run, level by level:</span>
+<span id="cb1-379"><a href="#cb1-379" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-380"><a href="#cb1-380" aria-hidden="true" tabindex="-1"></a>| Level | $n_{\text{points}}$ | $n_{\text{subintervals}}$ | $n_{\text{wrong<span class="sc">\_</span>match}}$ | $n_{\text{uncertified}}$ |</span>
+<span id="cb1-381"><a href="#cb1-381" aria-hidden="true" tabindex="-1"></a>|---|---|---|---|---|</span>
+<span id="cb1-382"><a href="#cb1-382" aria-hidden="true" tabindex="-1"></a>| 0 | 3 | 2 | 2 | 1 |</span>
+<span id="cb1-383"><a href="#cb1-383" aria-hidden="true" tabindex="-1"></a>| 1 | 4 | 2 | 2 | 0 |</span>
+<span id="cb1-384"><a href="#cb1-384" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-385"><a href="#cb1-385" aria-hidden="true" tabindex="-1"></a>The run terminates at $L = 1$ with all edges certified</span>
+<span id="cb1-386"><a href="#cb1-386" aria-hidden="true" tabindex="-1"></a>($n_{\text{uncertified}} = 0$) — on just **4 nodes**, coarser than the window</span>
+<span id="cb1-387"><a href="#cb1-387" aria-hidden="true" tabindex="-1"></a>run's 8. It flags one of the two $L=0$ subintervals, bisects it once, and both</span>
+<span id="cb1-388"><a href="#cb1-388" aria-hidden="true" tabindex="-1"></a>halves then certify.</span>
+<span id="cb1-389"><a href="#cb1-389" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-390"><a href="#cb1-390" aria-hidden="true" tabindex="-1"></a>::: {.callout-note}</span>
+<span id="cb1-391"><a href="#cb1-391" aria-hidden="true" tabindex="-1"></a>**On $n_{\text{wrong\_match}}$.** This column compares the pipeline's</span>
+<span id="cb1-392"><a href="#cb1-392" aria-hidden="true" tabindex="-1"></a>propagated band labels against an *independent* continuous truth sweep — a</span>
+<span id="cb1-393"><a href="#cb1-393" aria-hidden="true" tabindex="-1"></a>strict consistency check available only under FirstK's fixed bands. It can be</span>
+<span id="cb1-394"><a href="#cb1-394" aria-hidden="true" tabindex="-1"></a>positive even when the grid topology is correct, because it counts any single</span>
+<span id="cb1-395"><a href="#cb1-395" aria-hidden="true" tabindex="-1"></a>band whose propagated identity differs from the continuous-tracking identity;</span>
+<span id="cb1-396"><a href="#cb1-396" aria-hidden="true" tabindex="-1"></a>see the <span class="co">[</span><span class="ot">knob-sweep page</span><span class="co">](knob-sweep.qmd)</span>.</span>
+<span id="cb1-397"><a href="#cb1-397" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-398"><a href="#cb1-398" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-399"><a href="#cb1-399" aria-hidden="true" tabindex="-1"></a><span class="fu">### What FirstK is blind to</span></span>
+<span id="cb1-400"><a href="#cb1-400" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-401"><a href="#cb1-401" aria-hidden="true" tabindex="-1"></a>FirstK's fixed cutoff at band 6 sits *right at* the band-7/8 near-degeneracy. It</span>
+<span id="cb1-402"><a href="#cb1-402" aria-hidden="true" tabindex="-1"></a>never computes bands 7 or 8, so it cannot see the avoided crossing the window run</span>
+<span id="cb1-403"><a href="#cb1-403" aria-hidden="true" tabindex="-1"></a>resolves directly — nor the tighter near-degeneracy among the highest bands near</span>
+<span id="cb1-404"><a href="#cb1-404" aria-hidden="true" tabindex="-1"></a>$\mu \approx 0.94$. What reaches it is only the **boundary disturbance** that the</span>
+<span id="cb1-405"><a href="#cb1-405" aria-hidden="true" tabindex="-1"></a>uncomputed band 7 casts onto its last requested band 6. Under the</span>
+<span id="cb1-406"><a href="#cb1-406" aria-hidden="true" tabindex="-1"></a>reference-faithful *additive* pruning rule, that disturbance does not lift any</span>
+<span id="cb1-407"><a href="#cb1-407" aria-hidden="true" tabindex="-1"></a>off-pair projection entry above the matched pair's by more than $t_\pi = 0.21$,</span>
+<span id="cb1-408"><a href="#cb1-408" aria-hidden="true" tabindex="-1"></a>so the ambiguous last band is **certified rather than refined**: FirstK flags a</span>
+<span id="cb1-409"><a href="#cb1-409" aria-hidden="true" tabindex="-1"></a>single subinterval, bisects once, and terminates at $L = 1$ on 4 nodes —</span>
+<span id="cb1-410"><a href="#cb1-410" aria-hidden="true" tabindex="-1"></a>*coarser* than the window run's 8. Lacking the bands that carry the crossing, and</span>
+<span id="cb1-411"><a href="#cb1-411" aria-hidden="true" tabindex="-1"></a>with the additive prune declining to manufacture refinement from the boundary</span>
+<span id="cb1-412"><a href="#cb1-412" aria-hidden="true" tabindex="-1"></a>ambiguity, the fixed-band approximation simply **under-resolves** the region the</span>
+<span id="cb1-413"><a href="#cb1-413" aria-hidden="true" tabindex="-1"></a>window run refines around. This is the honest cost of approximating a</span>
+<span id="cb1-414"><a href="#cb1-414" aria-hidden="true" tabindex="-1"></a>ragged-window problem with a fixed band count.</span>
+<span id="cb1-415"><a href="#cb1-415" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-416"><a href="#cb1-416" aria-hidden="true" tabindex="-1"></a><span class="fu">## Comparison: FirstK vs Window</span></span>
+<span id="cb1-417"><a href="#cb1-417" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-418"><a href="#cb1-418" aria-hidden="true" tabindex="-1"></a>The two modes solve the *same* PDE with different spectral bookkeeping, and they</span>
+<span id="cb1-419"><a href="#cb1-419" aria-hidden="true" tabindex="-1"></a>answer **different questions**:</span>
+<span id="cb1-420"><a href="#cb1-420" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-421"><a href="#cb1-421" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Window** asks "track every band inside $<span class="co">[</span><span class="ot">0, 270</span><span class="co">]</span>$" — this benchmark's</span>
+<span id="cb1-422"><a href="#cb1-422" aria-hidden="true" tabindex="-1"></a>  actual question, ragged ranks and all.</span>
+<span id="cb1-423"><a href="#cb1-423" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**FirstK** asks "track the six smallest bands everywhere" — a uniform</span>
+<span id="cb1-424"><a href="#cb1-424" aria-hidden="true" tabindex="-1"></a>  approximation that needs no window but cannot reach the upper-band physics.</span>
+<span id="cb1-425"><a href="#cb1-425" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-426"><a href="#cb1-426" aria-hidden="true" tabindex="-1"></a>They **terminate at different levels and on different grids**:</span>
+<span id="cb1-427"><a href="#cb1-427" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-428"><a href="#cb1-428" aria-hidden="true" tabindex="-1"></a>| | Window | FirstK |</span>
+<span id="cb1-429"><a href="#cb1-429" aria-hidden="true" tabindex="-1"></a>|---|---|---|</span>
+<span id="cb1-430"><a href="#cb1-430" aria-hidden="true" tabindex="-1"></a>| Bands per node | ragged (4–9) | fixed (6) |</span>
+<span id="cb1-431"><a href="#cb1-431" aria-hidden="true" tabindex="-1"></a>| Spectral region | $I_\lambda = <span class="co">[</span><span class="ot">0, 270</span><span class="co">]</span>$ | 6 smallest bands |</span>
+<span id="cb1-432"><a href="#cb1-432" aria-hidden="true" tabindex="-1"></a>| Tolerances | $t_\pi = 0.21,\ t_\lambda = 0.085$ | $t_\pi = 0.21,\ t_\lambda = 0.001$ |</span>
+<span id="cb1-433"><a href="#cb1-433" aria-hidden="true" tabindex="-1"></a>| Terminal level | 3 | 1 |</span>
+<span id="cb1-434"><a href="#cb1-434" aria-hidden="true" tabindex="-1"></a>| Grid nodes | **8** | **4** |</span>
+<span id="cb1-435"><a href="#cb1-435" aria-hidden="true" tabindex="-1"></a>| Reproduces Table 1D Error | **yes** | no |</span>
+<span id="cb1-436"><a href="#cb1-436" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-437"><a href="#cb1-437" aria-hidden="true" tabindex="-1"></a>The window run reaches **8 nodes** and reproduces the reference</span>
+<span id="cb1-438"><a href="#cb1-438" aria-hidden="true" tabindex="-1"></a>1-D grid. FirstK, with the *same* $t_\pi = 0.21$ and the reference-faithful</span>
+<span id="cb1-439"><a href="#cb1-439" aria-hidden="true" tabindex="-1"></a>additive pruning rule, terminates two levels earlier on just **4 nodes**: its</span>
+<span id="cb1-440"><a href="#cb1-440" aria-hidden="true" tabindex="-1"></a>fixed 6-band cutoff sits at the band-7/8 near-degeneracy, but the additive prune</span>
+<span id="cb1-441"><a href="#cb1-441" aria-hidden="true" tabindex="-1"></a>certifies the resulting boundary ambiguity on band 6 rather than chasing it — so</span>
+<span id="cb1-442"><a href="#cb1-442" aria-hidden="true" tabindex="-1"></a>FirstK *under*-resolves exactly the region the window run refines around.</span>
+<span id="cb1-443"><a href="#cb1-443" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-444"><a href="#cb1-444" aria-hidden="true" tabindex="-1"></a>The two modes do **not** land on the same grid. Earlier versions of this page</span>
+<span id="cb1-445"><a href="#cb1-445" aria-hidden="true" tabindex="-1"></a>showed a *different* FirstK grid — first a manufactured 8-node match (a tuned</span>
+<span id="cb1-446"><a href="#cb1-446" aria-hidden="true" tabindex="-1"></a>$t_\pi = 0.35$ reverse-engineered to hit the window's grid, a value found nowhere</span>
+<span id="cb1-447"><a href="#cb1-447" aria-hidden="true" tabindex="-1"></a>in the reference), then a 13-node over-refinement — because the pruning rule</span>
+<span id="cb1-448"><a href="#cb1-448" aria-hidden="true" tabindex="-1"></a>and preset tolerances had not yet been made reference-faithful. With the</span>
+<span id="cb1-449"><a href="#cb1-449" aria-hidden="true" tabindex="-1"></a>faithful additive prune and the stated $t_\pi = 0.21$, FirstK settles at 4 nodes.</span>
+<span id="cb1-450"><a href="#cb1-450" aria-hidden="true" tabindex="-1"></a>The window-mode run is the faithful reproduction; FirstK here is a fixed-band</span>
+<span id="cb1-451"><a href="#cb1-451" aria-hidden="true" tabindex="-1"></a>approximation that under-resolves the crossing it cannot see.</span>
+<span id="cb1-452"><a href="#cb1-452" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-453"><a href="#cb1-453" aria-hidden="true" tabindex="-1"></a>::: {layout-ncol=2}</span>
+<span id="cb1-454"><a href="#cb1-454" aria-hidden="true" tabindex="-1"></a><span class="al">![**Adaptive grid** (Window) — 8 nodes, the faithful grid.](../figures/diffusion-1param/window/adaptive-grid.png)</span></span>
+<span id="cb1-455"><a href="#cb1-455" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-456"><a href="#cb1-456" aria-hidden="true" tabindex="-1"></a><span class="al">![**Adaptive grid** (FirstK) — 4 nodes, the fixed-band approximation terminating early.](../figures/diffusion-1param/adaptive-grid.png)</span></span>
+<span id="cb1-457"><a href="#cb1-457" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-458"><a href="#cb1-458" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-459"><a href="#cb1-459" aria-hidden="true" tabindex="-1"></a>The surrogate's accuracy as a reduced-order model — versus a dense solve at</span>
+<span id="cb1-460"><a href="#cb1-460" aria-hidden="true" tabindex="-1"></a>arbitrary $\mu$ — is measured for both modes on the</span>
+<span id="cb1-461"><a href="#cb1-461" aria-hidden="true" tabindex="-1"></a><span class="co">[</span><span class="ot">ROM vs dense page</span><span class="co">](rom-vs-dense.qmd)</span>.</span>
+<span id="cb1-462"><a href="#cb1-462" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-463"><a href="#cb1-463" aria-hidden="true" tabindex="-1"></a><span class="fu">## Side-by-side with the original MATLAB</span></span>
+<span id="cb1-464"><a href="#cb1-464" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-465"><a href="#cb1-465" aria-hidden="true" tabindex="-1"></a>The panels below place the Python rebuild next to a **freshly generated figure</span>
+<span id="cb1-466"><a href="#cb1-466" aria-hidden="true" tabindex="-1"></a>from the dissertation's own MATLAB code** (the frozen <span class="in">`CodeSeptember`</span> dump), so</span>
+<span id="cb1-467"><a href="#cb1-467" aria-hidden="true" tabindex="-1"></a>the two implementations can be eyeballed directly. The MATLAB figures are</span>
+<span id="cb1-468"><a href="#cb1-468" aria-hidden="true" tabindex="-1"></a>produced headlessly by <span class="in">`scripts/matlab_figures.py`</span> under MATLAB R2026a and</span>
+<span id="cb1-469"><a href="#cb1-469" aria-hidden="true" tabindex="-1"></a>committed as artifacts (CI has no MATLAB, so they are not regenerated on every</span>
+<span id="cb1-470"><a href="#cb1-470" aria-hidden="true" tabindex="-1"></a>build).</span>
+<span id="cb1-471"><a href="#cb1-471" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-472"><a href="#cb1-472" aria-hidden="true" tabindex="-1"></a>::: {.callout-note collapse="true"}</span>
+<span id="cb1-473"><a href="#cb1-473" aria-hidden="true" tabindex="-1"></a><span class="fu">## Provenance (how the MATLAB figures were made)</span></span>
+<span id="cb1-474"><a href="#cb1-474" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-475"><a href="#cb1-475" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Source**: <span class="in">`GreedyAlgorithm/CodeSeptember/Main.m`</span>, <span class="in">`choice1='1'`</span>,</span>
+<span id="cb1-476"><a href="#cb1-476" aria-hidden="true" tabindex="-1"></a>  <span class="in">`InitialLevel=2`</span>, run through <span class="in">`scripts/matlab_figures.py`</span> (interactive</span>
+<span id="cb1-477"><a href="#cb1-477" aria-hidden="true" tabindex="-1"></a>  prompts, <span class="in">`VideoWriter`</span>, and Windows-only paths are neutralised; the frozen</span>
+<span id="cb1-478"><a href="#cb1-478" aria-hidden="true" tabindex="-1"></a>  dump is never edited — the grid-helpers <span class="in">`lev2knots_doubling`</span>/<span class="in">`tensor_grid`</span> are</span>
+<span id="cb1-479"><a href="#cb1-479" aria-hidden="true" tabindex="-1"></a>  addpath'd from the <span class="in">`Clean`</span> dump, which only fills gaps CodeSeptember lacks).</span>
+<span id="cb1-480"><a href="#cb1-480" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**1-parameter coefficient (this page)**: the frozen diffusion solver hard-wires</span>
+<span id="cb1-481"><a href="#cb1-481" aria-hidden="true" tabindex="-1"></a>  the §3.3.3 **2-parameter** coefficient <span class="in">`[µ₁⁻²; 0.8·µ₂⁻¹; µ₂⁻²]`</span> and cannot</span>
+<span id="cb1-482"><a href="#cb1-482" aria-hidden="true" tabindex="-1"></a>  express the §3.3.2 eq-3.10 coefficient. The MATLAB figures here therefore use</span>
+<span id="cb1-483"><a href="#cb1-483" aria-hidden="true" tabindex="-1"></a>  a **documented, unfrozen adaptation** — <span class="in">`matlab/matched_eig1D_3_3_2.m`</span>, an</span>
+<span id="cb1-484"><a href="#cb1-484" aria-hidden="true" tabindex="-1"></a>  editable copy of the frozen <span class="in">`matched_eig2Dexample.m`</span> with **only** the</span>
+<span id="cb1-485"><a href="#cb1-485" aria-hidden="true" tabindex="-1"></a>  coefficient replaced by <span class="in">`[µ⁻²; 1; 0.7⁻²]`</span> (eq-3.10 exactly). Everything else</span>
+<span id="cb1-486"><a href="#cb1-486" aria-hidden="true" tabindex="-1"></a>  (matching, a-posteriori gate) is byte-for-byte the frozen original.</span>
+<span id="cb1-487"><a href="#cb1-487" aria-hidden="true" tabindex="-1"></a><span class="ss">- </span>**Tolerances**: the frozen <span class="in">`choice1='1'`</span> values <span class="in">`t_lambda=0.085`</span>,</span>
+<span id="cb1-488"><a href="#cb1-488" aria-hidden="true" tabindex="-1"></a>  <span class="in">`t_pi=0.57`</span>, window <span class="in">`I_λ=[0,200]`</span> — **not** the rebuild's window preset, so</span>
+<span id="cb1-489"><a href="#cb1-489" aria-hidden="true" tabindex="-1"></a>  the two grids are expected to differ in node count.</span>
+<span id="cb1-490"><a href="#cb1-490" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-491"><a href="#cb1-491" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-492"><a href="#cb1-492" aria-hidden="true" tabindex="-1"></a>::: {layout-ncol=2}</span>
+<span id="cb1-493"><a href="#cb1-493" aria-hidden="true" tabindex="-1"></a><span class="al">![**Rebuild** — reference spectrum (Window mode), bands descending into the kept window as $\mu$ grows.](../figures/diffusion-1param/window/reference-spectrum.png)</span></span>
+<span id="cb1-494"><a href="#cb1-494" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-495"><a href="#cb1-495" aria-hidden="true" tabindex="-1"></a><span class="al">![**MATLAB** — matched eigenvalue curves vs $\mu$ from the original code (eq-3.10 coefficient). Same qualitative structure: branches descend as $\mu$ grows, higher bands enter the window near the band-7/8 avoided crossing at $\mu\approx0.8$.](../figures/diffusion-1param/matlab_matched-eigenvalue-curves.png)</span></span>
+<span id="cb1-496"><a href="#cb1-496" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-497"><a href="#cb1-497" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-498"><a href="#cb1-498" aria-hidden="true" tabindex="-1"></a>::: {layout-ncol=2}</span>
+<span id="cb1-499"><a href="#cb1-499" aria-hidden="true" tabindex="-1"></a><span class="al">![**Rebuild** — adaptive grid (Window), 8 nodes, refinement concentrated around the avoided crossing.](../figures/diffusion-1param/window/adaptive-grid.png)</span></span>
+<span id="cb1-500"><a href="#cb1-500" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-501"><a href="#cb1-501" aria-hidden="true" tabindex="-1"></a>!<span class="co">[</span><span class="ot">**MATLAB** — adaptive grid from the original code, 6 nodes at the frozen `choice1='1'` tolerances ($t_\lambda=0.085$, looser than the window preset). Refinement concentrates in the same $[0.7, 0.85]$ crossing region.</span><span class="co">](../figures/diffusion-1param/matlab_adaptive-grid.png)</span></span>
+<span id="cb1-502"><a href="#cb1-502" aria-hidden="true" tabindex="-1"></a>:::</span>
+<span id="cb1-503"><a href="#cb1-503" aria-hidden="true" tabindex="-1"></a></span>
+<span id="cb1-504"><a href="#cb1-504" aria-hidden="true" tabindex="-1"></a>The two adaptive grids are **not** expected to be node-for-node identical — they</span>
+<span id="cb1-505"><a href="#cb1-505" aria-hidden="true" tabindex="-1"></a>run at different tolerances, and the MATLAB grid uses the node-centric</span>
+<span id="cb1-506"><a href="#cb1-506" aria-hidden="true" tabindex="-1"></a><span class="in">`forward_points`</span> refinement the rebuild only reproduces under its</span>
+<span id="cb1-507"><a href="#cb1-507" aria-hidden="true" tabindex="-1"></a><span class="in">`forward_points`</span> strategy. What the pairing shows is that both implementations</span>
+<span id="cb1-508"><a href="#cb1-508" aria-hidden="true" tabindex="-1"></a>place their refinement in the same crossing region and recover the same</span>
+<span id="cb1-509"><a href="#cb1-509" aria-hidden="true" tabindex="-1"></a>descending band structure. Rebuild-only figures on this page (per-level sliders,</span>
+<span id="cb1-510"><a href="#cb1-510" aria-hidden="true" tabindex="-1"></a>a-posteriori summaries, verdict map) have **no MATLAB counterpart** — the</span>
+<span id="cb1-511"><a href="#cb1-511" aria-hidden="true" tabindex="-1"></a>original code never draws them.</span></code><button title="Copy to Clipboard" class="code-copy-button" data-in-quarto-modal=""><i class="bi"></i></button></pre></div>
+</div></div></div></div></div>
+</div> <!-- /content -->
+
+
+
+
+</body></html>
